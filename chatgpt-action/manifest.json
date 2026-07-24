@@ -1,0 +1,14 @@
+{
+  "name": "wcagc Accessibility Scanner",
+  "description_for_human": "Run deterministic axe-core accessibility scans of your registered wcagc sites, and read scan-run, journey, and trend results — for ChatGPT Plus, where full MCP tool access isn't yet available.",
+  "description_for_model": "Use these actions to check web accessibility on the user's registered wcagc sites. Findings come from axe-core, a deterministic rule engine, not a language-model guess. Automated testing finds only a portion of accessibility barriers (commonly 30-57%); always disclose that, and never present a result as a final compliance verdict or as a numeric score — report issue counts by severity and point the user to a manual review for anything automated testing cannot cover.",
+  "openapi_url": "https://api.wcagc.com/v3/api-docs/public-v1",
+  "auth": {
+    "type": "service_http",
+    "authorization_type": "bearer",
+    "instructions": "Paste a Pro+ API key (scopes sites:read, scans:write, scans:read) minted from Settings > API keys. A separate mcp:scan-only key does not carry these v1 scopes and will not work here."
+  },
+  "availability_note": "Writing (starting scans/runs) through ChatGPT Actions currently requires a ChatGPT Business, Enterprise, or Edu workspace, per OpenAI's Actions availability. ChatGPT Plus can still read the GPT's description; for read/scan access on Plus, connect this same API key as a Bearer token when your workspace's Actions support becomes available.",
+  "legal_info_url": "https://wcagc.com/legal/terms-of-service",
+  "privacy_policy_url": "https://wcagc.com/legal/privacy-policy"
+}

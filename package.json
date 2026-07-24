@@ -1,0 +1,65 @@
+{
+  "name": "@wcagc/mcp",
+  "version": "0.2.0",
+  "description": "wcagc MCP server — a thin, stateless adapter that translates MCP tool calls into wcagc-api HTTP calls. No database, no secrets beyond WCAGC_API_BASE_URL (+ WCAGC_MCP_KEY for local stdio mode). Open-source: this package holds no business logic or credentials of its own.",
+  "license": "MIT",
+  "private": false,
+  "type": "module",
+  "engines": {
+    "node": ">=24"
+  },
+  "bin": {
+    "wcagc-mcp": "./dist/stdio.js"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "accessibility",
+    "a11y",
+    "wcag",
+    "axe-core",
+    "en-301-549",
+    "pdf-ua"
+  ],
+  "homepage": "https://wcagc.com/integrations/mcp",
+  "bugs": {
+    "url": "https://github.com/WCAG-Compliance/wcagc-mcp/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/WCAG-Compliance/wcagc-mcp.git"
+  },
+  "scripts": {
+    "dev": "tsx watch src/hosted.ts",
+    "start": "tsx src/hosted.ts",
+    "start:stdio": "tsx src/stdio.ts",
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc --noEmit",
+    "verify": "node --import tsx --test test/tools.test.ts test/auth.test.ts test/quota.test.ts test/pro.test.ts test/action-manifest.test.ts",
+    "verify:tools": "node --import tsx --test test/tools.test.ts",
+    "verify:auth": "node --import tsx --test test/auth.test.ts",
+    "verify:quota": "node --import tsx --test test/quota.test.ts",
+    "verify:pro": "node --import tsx --test test/pro.test.ts"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "1.29.0",
+    "express": "^5.2.1",
+    "zod": "^3.25.0"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.0",
+    "@types/multer": "^1.4.12",
+    "@types/node": "^24.0.0",
+    "multer": "^2.0.0",
+    "tsx": "^4.22.4",
+    "typescript": "^6.0.3"
+  }
+}

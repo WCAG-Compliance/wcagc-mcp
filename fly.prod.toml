@@ -1,0 +1,26 @@
+app = "wcagc-mcp"
+primary_region = "arn"
+
+[build]
+dockerfile = "Dockerfile"
+
+[env]
+NODE_ENV = "production"
+
+[http_service]
+internal_port = 8080
+auto_stop_machines = false
+auto_start_machines = true
+force_https = true
+
+[[http_service.checks]]
+grace_period = "10s"
+interval = "15s"
+method = "GET"
+path = "/health"
+timeout = "5s"
+
+[[vm]]
+memory = "512mb"
+cpu_kind = "shared"
+cpus = 1
