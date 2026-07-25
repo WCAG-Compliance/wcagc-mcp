@@ -1,0 +1,44 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.wcag-compliance/mcp",
+  "title": "wcagc — accessibility scanning",
+  "description": "Run deterministic axe-core accessibility scans (WCAG 2.1 AA, EN 301 549, PDF/UA) through your own wcagc account and read back structured findings. Every result carries a coverage disclaimer; no score or conformance verdict.",
+  "version": "0.2.0",
+  "repository": {
+    "url": "https://github.com/WCAG-Compliance/wcagc-mcp",
+    "source": "github"
+  },
+  "websiteUrl": "https://wcagc.com/integrations/mcp",
+  "remotes": [
+    {
+      "type": "streamable-http",
+      "url": "https://mcp.wcagc.com/mcp"
+    }
+  ],
+  "packages": [
+    {
+      "registryType": "npm",
+      "identifier": "@wcagc/mcp",
+      "version": "0.2.0",
+      "transport": {
+        "type": "stdio"
+      },
+      "environmentVariables": [
+        {
+          "name": "WCAGC_MCP_KEY",
+          "description": "A wcagc API key with the mcp:scan scope. Mint one under Settings -> API keys; every plan can, with a daily quota on Free and Starter.",
+          "isRequired": true,
+          "isSecret": true,
+          "format": "string"
+        },
+        {
+          "name": "WCAGC_API_BASE_URL",
+          "description": "The wcagc API to call. Defaults to the hosted API; override only for a self-hosted deployment.",
+          "isRequired": false,
+          "isSecret": false,
+          "format": "string"
+        }
+      ]
+    }
+  ]
+}
