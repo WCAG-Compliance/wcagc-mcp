@@ -6,7 +6,7 @@ import { pathToFileURL } from "node:url";
 import { introspectVerifier } from "./auth-verifier.js";
 import { config } from "./config.js";
 import { logger } from "./logger.js";
-import { buildServer } from "./server.js";
+import { VERSION, buildServer } from "./server.js";
 
 // allowedHosts must stay undefined (not []) when unset — an explicit empty array opts into
 // Host-header validation with a zero-entry allowlist, rejecting every request.
@@ -24,8 +24,11 @@ mcpApp.use(express.json());
 // exempt while /mcp keeps full protection. Exempting it is safe: it returns a fixed status and
 // no request-specific or sensitive data, so reaching it via rebinding reveals nothing.
 export const app = express();
+// `version` is the parity signal: the release workflow polls this after deploying and fails the
+// release unless it matches the version being published to npm, so "what runs on Fly" and "what
+// `npx @wcagc/mcp` installs" can never silently drift apart.
 app.get("/health", (_req, res) => {
-  res.status(200).json({ status: "ok" });
+  res.status(200).json({ status: "ok", version: VERSION });
 });
 app.use(mcpApp);
 

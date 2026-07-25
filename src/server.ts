@@ -4,8 +4,10 @@ import { registerProTools } from "./tools/pro.js";
 import { registerScanTools } from "./tools/scan.js";
 
 // Bumped on every tool-catalog or output-shape change — surfaced to clients via the MCP
-// initialize handshake.
-const VERSION = "0.2.2";
+// initialize handshake and by GET /health. Must equal package.json's version: the release
+// workflow compares the deployed /health against the version it publishes to npm, and
+// test/version.test.ts fails the build if the two ever drift.
+export const VERSION = "0.2.2";
 
 /**
  * One server, two transports (hosted Streamable HTTP + local stdio) share this — the tool
