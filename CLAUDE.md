@@ -4,7 +4,13 @@ Canonical rules for this service live in **[AGENTS.md](AGENTS.md)** — read it 
 
 ## The one that bites
 
-**Changed anything in `src/`? Bump the version in all four places, same commit:** `package.json` `version` · `server.json` `version` · `server.json` `packages[0].version` · `src/server.ts` `VERSION`.
+**Changed anything in `src/`? Bump the version — with the script, never by hand:**
+
+```bash
+npm run set-version 0.2.6
+```
+
+It updates all four places that must agree (`package.json`, `server.json` ×2, `src/server.ts`) and checks the result.
 
 The version is the release trigger. Skip it and your change deploys to Fly while every `npx @wcagc/mcp` user stays on the old build, with nothing flagging the drift. `npm run verify` catches the four disagreeing with each other — it cannot catch a bump you never made.
 

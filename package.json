@@ -1,6 +1,6 @@
 {
   "name": "@wcagc/mcp",
-  "version": "0.2.5",
+  "version": "0.2.6",
   "mcpName": "io.github.WCAG-Compliance/mcp",
   "description": "wcagc MCP server \u2014 a thin, stateless adapter that translates MCP tool calls into wcagc-api HTTP calls. No database, no secrets beyond WCAGC_API_BASE_URL (+ WCAGC_MCP_KEY for local stdio mode). Open-source: this package holds no business logic or credentials of its own.",
   "license": "MIT",
@@ -43,6 +43,7 @@
     "start": "tsx src/hosted.ts",
     "start:stdio": "tsx src/stdio.ts",
     "build": "tsc -p tsconfig.json",
+    "set-version": "node scripts/set-version.mjs",
     "prepublishOnly": "npm run build",
     "typecheck": "tsc --noEmit",
     "verify": "node --import tsx --test test/version.test.ts test/tools.test.ts test/auth.test.ts test/quota.test.ts test/pro.test.ts test/action-manifest.test.ts",

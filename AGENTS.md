@@ -10,16 +10,15 @@ Unlike the other services, this one leaves the monorepo twice: as **public sourc
 
 **If you change anything under `wcagc-mcp/src/`, you MUST raise the version.** The version *is* the release trigger: `mcp.yml` publishes to npm and to the MCP Registry only when `package.json`'s `version` differs from the previous commit's. Forget it and your change silently deploys to Fly while every local `npx @wcagc/mcp` user stays on the old build — the two drift apart with nothing pointing it out.
 
-Change all **four** in the same commit:
+Use the script — **do not hand-edit the version anywhere**:
 
-| File | Field |
-|---|---|
-| `package.json` | `version` |
-| `server.json` | `version` |
-| `server.json` | `packages[0].version` |
-| `src/server.ts` | `VERSION` |
+```bash
+npm run set-version 0.2.6
+```
 
-`npm run verify` fails if they disagree (`test/version.test.ts`) — so a mismatch cannot reach main, but *nobody* catches a version you never bumped at all. That check is on you.
+It moves all four places that must agree (`package.json` `version`, `server.json` `version` **and** `packages[0].version`, and `src/server.ts` `VERSION`) and verifies the result. Editing them by hand is how a bump reaches CI half-applied — `npm run verify` then fails on `test/version.test.ts`, which is the safety net working, but it costs a red pipeline for nothing.
+
+That net catches the four disagreeing with each other. Nothing catches a version you never bumped at all — that part is on you.
 
 Semver, judged by what an MCP client sees:
 - **patch** — internal fix, no change to tool names, arguments or output shape.
