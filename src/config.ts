@@ -26,7 +26,11 @@ export const config = {
   mcpKey: process.env.WCAGC_MCP_KEY,
 
   // ── backend ──────────────────────────────────────────────────────────────
-  apiBaseUrl: process.env.WCAGC_API_BASE_URL ?? "http://localhost:8081",
+  // Defaults to the hosted API because this package is installed by end users: the README's own
+  // client config sets only WCAGC_MCP_KEY, so a localhost default meant anyone following our
+  // instructions got a server quietly pointing at a machine-local port that isn't there.
+  // Local development and self-hosting set this explicitly (tests always do).
+  apiBaseUrl: process.env.WCAGC_API_BASE_URL ?? "https://api.wcagc.com",
   requestTimeoutMs: num(process.env.WCAGC_MCP_REQUEST_TIMEOUT_MS, 15_000),
   // How long a verified introspection result is trusted before the hosted transport re-checks
   // it — bounds staleness after a revocation/plan change without hammering the API per tool call.

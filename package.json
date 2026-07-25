@@ -1,6 +1,6 @@
 {
   "name": "@wcagc/mcp",
-  "version": "0.2.2",
+  "version": "0.2.3",
   "mcpName": "io.github.wcag-compliance/mcp",
   "description": "wcagc MCP server \u2014 a thin, stateless adapter that translates MCP tool calls into wcagc-api HTTP calls. No database, no secrets beyond WCAGC_API_BASE_URL (+ WCAGC_MCP_KEY for local stdio mode). Open-source: this package holds no business logic or credentials of its own.",
   "license": "MIT",

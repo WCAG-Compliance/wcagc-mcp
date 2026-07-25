@@ -71,7 +71,7 @@ roughly 30–57% of accessibility issues, and the remainder needs manual review.
 
 | Env var | Used by | Meaning |
 |---|---|---|
-| `WCAGC_API_BASE_URL` | both | The wcagc API to call. |
+| `WCAGC_API_BASE_URL` | both | The wcagc API to call. Defaults to `https://api.wcagc.com`; set it only when self-hosting. |
 | `WCAGC_MCP_KEY` | stdio | Your `mcp:scan` API key. |
 | `PORT` | hosted | Port to listen on (default `8080`). |
 | `WCAGC_MCP_ALLOWED_HOSTS` | hosted | Comma-separated Host-header allowlist (DNS-rebinding protection when bound to `0.0.0.0`). |
