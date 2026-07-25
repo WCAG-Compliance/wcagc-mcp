@@ -26,6 +26,15 @@ export function toolError(err: unknown): ToolErrorResult {
       }
     }
     if (err.limit !== undefined) structured.limit = err.limit;
+    // "Register the site first" is unactionable on its own — the caller has no way to see what IS
+    // registered, or that the host must match exactly (no scheme, no path, no www unless that is
+    // how it was added). Point at the tool that answers it.
+    if (err.code === "SITE_NOT_FOUND") {
+      hint =
+        " Call list_sites to see the registered hosts and use one of them verbatim as siteHost" +
+        " (host only — no https:// and no trailing path). To scan a URL that is not a registered" +
+        " site, omit siteHost entirely and the free path is used instead." + hint;
+    }
     // Without this the caller just gets "the key does not grant the required scope" and has no
     // way to learn which one, or that the fix is a differently-scoped key rather than a retry.
     if (err.requiredScope) {

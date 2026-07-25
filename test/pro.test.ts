@@ -129,3 +129,19 @@ test("a scope denial names the missing scope and how to obtain it", async () => 
   assert.match(res.content[0].text, /mcp:scan-only key cannot reach it/);
   await client.close();
 });
+
+// "Register the site before starting an API scan." leaves the caller stuck: it names neither the
+// registered hosts nor the fact that omitting siteHost would have worked. Both are one tool call
+// and one argument away, so say so.
+test("an unknown siteHost points at list_sites and at the no-siteHost fallback", async () => {
+  const client = await connectedClient(harness.mcpUrl, TOKENS.PRO);
+  const res: any = await client.callTool({
+    name: "scan_url",
+    arguments: { url: "https://nope.example/", siteHost: "nope.example" },
+  });
+  assert.equal(res.isError, true);
+  assert.equal(res.structuredContent.code, "SITE_NOT_FOUND");
+  assert.match(res.content[0].text, /list_sites/);
+  assert.match(res.content[0].text, /omit siteHost/i);
+  await client.close();
+});

@@ -199,6 +199,12 @@ export function createFixtureApp(): Express {
       res.status(401).json(problem(401, "API_KEY_INVALID", "Invalid API key."));
       return;
     }
+    // The real endpoint resolves the site from the URL's own host — siteHost is only the tool's
+    // mode switch and is never sent — so an unregistered host is a 404 here, not a success.
+    if (!String(req.body?.url ?? "").includes(SITE_HOST)) {
+      res.status(404).json(problem(404, "SITE_NOT_FOUND", "Register the site before starting an API scan."));
+      return;
+    }
     res.status(202).json({
       id: "scan-registered-1", siteId: SITE_ID, status: "QUEUED",
       requestedUrl: req.body.url, counts: { critical: 0, serious: 0, moderate: 0, minor: 0 },
