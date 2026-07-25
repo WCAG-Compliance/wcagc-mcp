@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { after, before, test } from "node:test";
-import { TOKENS } from "./fixtures/api.js";
+import { SITE_HOST, TOKENS } from "./fixtures/api.js";
 import { connectedClient, startHarness, type Harness } from "./helpers/harness.js";
 
 let harness: Harness;
@@ -25,20 +25,33 @@ test("list_sites returns the org's registered sites", async () => {
   }
 });
 
-test("scan_url with siteHost routes to the registered-site v1 path and still carries the disclaimer", async () => {
+test("scan_url records the scan against a registered site without being told to", async () => {
   const client = await connectedClient(harness.mcpUrl, TOKENS.PRO);
-  try {
-    const result = await client.callTool({
-      name: "scan_url",
-      arguments: { url: "https://example.com/checkout", siteHost: "example.com" },
-    });
-    assert.notEqual(result.isError, true);
-    const structured = result.structuredContent as { coverageDisclaimer: string; scan: { siteId: string } };
-    assert.ok(structured.coverageDisclaimer.includes("Automated testing finds only a portion"));
-    assert.ok(structured.scan.siteId);
-  } finally {
-    await client.close();
-  }
+  const res: any = await client.callTool({
+    name: "scan_url",
+    arguments: { url: `https://${SITE_HOST}/pricing` },
+  });
+  assert.equal(res.isError, undefined);
+  assert.equal(res.structuredContent.recordedAgainstSite, true);
+  assert.equal(res.structuredContent.pollWith, "get_run");
+  assert.ok(res.structuredContent.coverageDisclaimer);
+  await client.close();
+});
+
+// The whole point: an unregistered URL still scans. The caller passes a URL and gets a result —
+// it never has to know whether the site exists, nor retry with different arguments.
+test("scan_url falls back to a one-off scan for an unregistered URL, and says so", async () => {
+  const client = await connectedClient(harness.mcpUrl, TOKENS.PRO);
+  const res: any = await client.callTool({
+    name: "scan_url",
+    arguments: { url: "https://not-registered.example/" },
+  });
+  assert.equal(res.isError, undefined);
+  assert.equal(res.structuredContent.recordedAgainstSite, false);
+  assert.equal(res.structuredContent.pollWith, "get_scan");
+  assert.match(res.content[0].text, /not a registered site/i);
+  assert.match(res.content[0].text, /Add the site under Sites/i);
+  await client.close();
 });
 
 test("scan_site queues a full-site run and get_run reads it back, both carrying the disclaimer", async () => {
@@ -130,18 +143,3 @@ test("a scope denial names the missing scope and how to obtain it", async () => 
   await client.close();
 });
 
-// "Register the site before starting an API scan." leaves the caller stuck: it names neither the
-// registered hosts nor the fact that omitting siteHost would have worked. Both are one tool call
-// and one argument away, so say so.
-test("an unknown siteHost points at list_sites and at the no-siteHost fallback", async () => {
-  const client = await connectedClient(harness.mcpUrl, TOKENS.PRO);
-  const res: any = await client.callTool({
-    name: "scan_url",
-    arguments: { url: "https://nope.example/", siteHost: "nope.example" },
-  });
-  assert.equal(res.isError, true);
-  assert.equal(res.structuredContent.code, "SITE_NOT_FOUND");
-  assert.match(res.content[0].text, /list_sites/);
-  assert.match(res.content[0].text, /omit siteHost/i);
-  await client.close();
-});

@@ -137,7 +137,7 @@ export function registerProTools(server: McpServer): void {
     "get_run",
     {
       title: "Get a full-site scan run by id",
-      description: "Polls a run started by scan_site (or a registered-site scan_url). Pro+.",
+      description: "Polls a full-site run from scan_site, or a scan_url result whose pollWith says get_run. Pro+.",
       inputSchema: { runId: z.string().uuid() },
     },
     async ({ runId }, extra) => {

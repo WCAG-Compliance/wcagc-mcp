@@ -25,7 +25,7 @@ const ACCOUNTS: Record<string, Account> = {
 };
 
 const SITE_ID = "11111111-1111-1111-1111-111111111111";
-const SITE_HOST = "example.com";
+export const SITE_HOST = "example.com";
 const JOURNEY_ID = "22222222-2222-2222-2222-222222222222";
 const JOURNEY_NAME = "Checkout";
 const RUN_ID = "33333333-3333-3333-3333-333333333333";
@@ -199,8 +199,16 @@ export function createFixtureApp(): Express {
       res.status(401).json(problem(401, "API_KEY_INVALID", "Invalid API key."));
       return;
     }
-    // The real endpoint resolves the site from the URL's own host — siteHost is only the tool's
-    // mode switch and is never sent — so an unregistered host is a 404 here, not a success.
+    // Mirrors PublicApiFacade.authorize: every v1 endpoint requires API_ACCESS after its scope
+    // check, so a FREE org is refused here regardless of the key's scopes.
+    if (account(bearerFrom(req))!.plan === "FREE") {
+      res.status(403).json({
+        ...problem(403, "FEATURE_NOT_IN_PLAN", "This feature is not included in your plan."),
+        targetPlan: "PRO",
+      });
+      return;
+    }
+    // The real endpoint resolves the site from the URL's own host, so an unregistered host 404s.
     if (!String(req.body?.url ?? "").includes(SITE_HOST)) {
       res.status(404).json(problem(404, "SITE_NOT_FOUND", "Register the site before starting an API scan."));
       return;
