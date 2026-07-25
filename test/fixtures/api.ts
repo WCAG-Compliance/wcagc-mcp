@@ -1,14 +1,15 @@
 import express, { type Express } from "express";
 import multer from "multer";
 import type { AddressInfo } from "node:net";
+import type { JsonWebKey } from "node:crypto";
 
 const upload = multer({ storage: multer.memoryStorage() });
 
 export const TOKENS = {
-  FREE_OK: "test-token-free-ok",
-  FREE_EXHAUSTED: "test-token-free-exhausted",
-  PRO: "test-token-pro-unlimited",
-  MCP_ONLY: "test-token-mcp-scope-only",
+  FREE_OK: "wcagc_test-token-free-ok",
+  FREE_EXHAUSTED: "wcagc_test-token-free-exhausted",
+  PRO: "wcagc_test-token-pro-unlimited",
+  MCP_ONLY: "wcagc_test-token-mcp-scope-only",
 } as const;
 
 interface Account {
@@ -94,9 +95,13 @@ function pdfResponse(id: string) {
 }
 
 /** Stands in for wcagc-api's /api/v1/mcp/** surface (see wcagc-worker/test/fixtures for the pattern this mirrors). */
-export function createFixtureApp(): Express {
+export function createFixtureApp(options: { jwks?: JsonWebKey[] } = {}): Express {
   const app = express();
   app.use(express.json());
+
+  app.get("/oauth2/jwks", (_req, res) => {
+    res.json({ keys: options.jwks ?? [] });
+  });
 
   app.post("/api/v1/mcp/introspect", (req, res) => {
     const token = bearerFrom(req);

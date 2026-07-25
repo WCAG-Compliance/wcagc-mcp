@@ -9,6 +9,10 @@ function parseList(raw: string | undefined, fallback: string[]): string[] {
   return items.length > 0 ? items : [...fallback];
 }
 
+const apiBaseUrl = process.env.WCAGC_API_BASE_URL ?? "https://api.wcagc.com";
+const oauthIssuer = process.env.WCAGC_MCP_OAUTH_ISSUER ?? apiBaseUrl;
+const mcpServerUrl = process.env.WCAGC_MCP_URL ?? "https://mcp.wcagc.com/mcp";
+
 /**
  * wcagc-mcp holds no secrets of its own beyond these — it is a thin adapter that translates MCP
  * tool calls into wcagc-api HTTP calls, forwarding the caller's own bearer (ARCHITECTURE §8).
@@ -30,11 +34,15 @@ export const config = {
   // client config sets only WCAGC_MCP_KEY, so a localhost default meant anyone following our
   // instructions got a server quietly pointing at a machine-local port that isn't there.
   // Local development and self-hosting set this explicitly (tests always do).
-  apiBaseUrl: process.env.WCAGC_API_BASE_URL ?? "https://api.wcagc.com",
+  apiBaseUrl,
   requestTimeoutMs: num(process.env.WCAGC_MCP_REQUEST_TIMEOUT_MS, 15_000),
   // How long a verified introspection result is trusted before the hosted transport re-checks
   // it — bounds staleness after a revocation/plan change without hammering the API per tool call.
   introspectCacheTtlSeconds: num(process.env.WCAGC_MCP_INTROSPECT_TTL_SECONDS, 60),
+  oauthIssuer,
+  oauthJwksUrl: process.env.WCAGC_MCP_OAUTH_JWKS_URL ?? `${oauthIssuer}/oauth2/jwks`,
+  mcpServerUrl,
+  jwksCacheTtlSeconds: num(process.env.WCAGC_MCP_JWKS_TTL_SECONDS, 300),
 
   // ── check_pdf url fetch (wcagc-api only accepts multipart bytes — see src/pdf-fetch.ts) ──
   pdfFetchTimeoutMs: num(process.env.WCAGC_MCP_PDF_FETCH_TIMEOUT_MS, 10_000),

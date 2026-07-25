@@ -11,7 +11,7 @@ portion of accessibility barriers, and this tool says so in every response.
 
 This package is a **thin, stateless adapter**. It holds no database, no scan logic, and no
 secrets beyond the wcagc API base URL — it translates MCP tool calls into HTTP calls against the
-wcagc API and forwards the caller's own API key. All authentication, entitlements, quotas, and
+wcagc API and forwards the caller's own bearer. All authentication, entitlements, quotas, and
 scan orchestration live in the API; this code is safe to read end to end.
 
 ## Two ways to run it
@@ -41,16 +41,19 @@ Configure your MCP client with:
 Mint an `mcp:scan` key from your wcagc account under Settings → API keys — available on every
 plan, with a daily quota on Free/Starter and unlimited on Pro/Agency.
 
-**Hosted (Streamable HTTP)** — what Claude web/desktop/mobile connectors and ChatGPT use, since
-neither runs a local process for you. Add this as a remote MCP connector and paste the same API
-key as the bearer token:
+**Hosted (Streamable HTTP + managed OAuth)** — what Claude web/desktop/mobile connectors and
+ChatGPT use, since neither runs a local process for you. Add this remote MCP connector:
 
 ```
 https://mcp.wcagc.com/mcp
 ```
 
-In ChatGPT, full tool access currently requires a Business, Enterprise, or Edu workspace; on Plus
-you can use the read-only Custom GPT Action instead. See
+The client discovers `/.well-known/oauth-protected-resource/mcp`, opens the wcagc login/consent
+flow, and binds the connection to one Organization. No key copy/paste is required. API-key bearer
+authentication remains supported for local stdio and CI.
+
+ChatGPT availability depends on the ChatGPT plan and on whether the client permits action tools;
+`scan_url` creates a scan and is not a read-only operation. See
 [wcagc.com/integrations/mcp](https://wcagc.com/integrations/mcp).
 
 ## Tools
@@ -79,6 +82,10 @@ roughly 30–57% of accessibility issues, and the remainder needs manual review.
 | `PORT` | hosted | Port to listen on (default `8080`). |
 | `WCAGC_MCP_ALLOWED_HOSTS` | hosted | Comma-separated Host-header allowlist (DNS-rebinding protection when bound to `0.0.0.0`). |
 | `WCAGC_MCP_INTROSPECT_TTL_SECONDS` | hosted | How long a verified bearer is cached before re-checking with the API (default `60`). |
+| `WCAGC_OAUTH_ISSUER` | hosted | Expected OAuth issuer. |
+| `WCAGC_OAUTH_JWKS_URL` | hosted | Authorization Server public JWKS URL. |
+| `WCAGC_MCP_SERVER_URL` | hosted | Canonical RFC 9728 protected-resource URL. |
+| `WCAGC_OAUTH_JWKS_TTL_SECONDS` | hosted | JWKS cache TTL; an unknown `kid` triggers an immediate refetch. |
 
 ## Development
 

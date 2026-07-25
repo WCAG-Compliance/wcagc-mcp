@@ -20,7 +20,43 @@ test("no bearer — 401 with a WWW-Authenticate challenge, never a bare crash", 
     body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "initialize", params: {} }),
   });
   assert.equal(res.status, 401);
-  assert.ok(res.headers.get("www-authenticate"), "expected a WWW-Authenticate challenge header");
+  const challenge = res.headers.get("www-authenticate");
+  assert.ok(challenge, "expected a WWW-Authenticate challenge header");
+  assert.match(challenge, /resource_metadata="https:\/\/mcp\.wcagc\.com\/\.well-known\/oauth-protected-resource\/mcp"/);
+});
+
+test("RFC 9728 metadata advertises the managed authorization server without DCR", async () => {
+  const res = await fetch(harness.metadataUrl);
+  assert.equal(res.status, 200);
+  const metadata = await res.json() as Record<string, unknown>;
+  assert.equal(metadata.resource, "https://mcp.wcagc.com/mcp");
+  assert.deepEqual(metadata.authorization_servers, [process.env.WCAGC_MCP_OAUTH_ISSUER]);
+  assert.deepEqual(metadata.scopes_supported, ["mcp:scan"]);
+});
+
+test("a valid managed OAuth JWT can initialize an MCP session", async () => {
+  const client = await connectedClient(harness.mcpUrl, harness.oauthToken());
+  await client.close();
+});
+
+test("OAuth JWTs with a foreign audience, expired timestamp, or unknown kid are rejected", async () => {
+  const invalidTokens = [
+    harness.oauthToken({ aud: "https://other.example/mcp" }),
+    harness.oauthToken({ exp: Math.floor(Date.now() / 1000) - 1 }),
+    harness.oauthToken({}, "unknown-kid"),
+  ];
+  for (const token of invalidTokens) {
+    const res = await fetch(harness.mcpUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json, text/event-stream",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "initialize", params: {} }),
+    });
+    assert.equal(res.status, 401);
+  }
 });
 
 test("wrong scope / unknown token — 401, not a silent pass-through", async () => {
