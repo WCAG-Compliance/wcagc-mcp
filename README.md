@@ -1,5 +1,8 @@
 # wcagc-mcp
 
+[![wcagc-mcp MCP server](https://glama.ai/mcp/servers/WCAG-Compliance/wcagc-mcp/badges/card.svg)](https://glama.ai/mcp/servers/WCAG-Compliance/wcagc-mcp)
+
+
 An [MCP](https://modelcontextprotocol.io) server that lets an AI assistant (Claude, ChatGPT, or
 any MCP-compatible client) run real, deterministic accessibility scans through
 [wcagc](https://wcagc.com) — axe-core under the hood, not an LLM guess. Every scan result carries
