@@ -3,7 +3,7 @@
   "name": "io.github.WCAG-Compliance/mcp",
   "title": "wcagc — accessibility scanning",
   "description": "Deterministic axe-core accessibility scans (WCAG 2.1 AA, EN 301 549, PDF/UA) via your account.",
-  "version": "0.2.6",
+  "version": "0.2.7",
   "repository": {
     "url": "https://github.com/WCAG-Compliance/wcagc-mcp",
     "source": "github"
@@ -19,7 +19,7 @@
     {
       "registryType": "npm",
       "identifier": "@wcagc/mcp",
-      "version": "0.2.6",
+      "version": "0.2.7",
       "transport": {
         "type": "stdio"
       },
