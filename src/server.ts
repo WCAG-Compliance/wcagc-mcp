@@ -5,7 +5,7 @@ import { registerScanTools } from "./tools/scan.js";
 
 // Bumped on every tool-catalog or output-shape change — surfaced to clients via the MCP
 // initialize handshake.
-const VERSION = "0.2.1";
+const VERSION = "0.2.2";
 
 /**
  * One server, two transports (hosted Streamable HTTP + local stdio) share this — the tool
