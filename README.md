@@ -1,7 +1,7 @@
 # wcagc-mcp
 
-[![wcagc-mcp MCP server](https://glama.ai/mcp/servers/WCAG-Compliance/wcagc-mcp/badges/card.svg)](https://glama.ai/mcp/servers/WCAG-Compliance/wcagc-mcp)
-
+[![WCAG-Compliance/wcagc-mcp MCP server](https://glama.ai/mcp/servers/WCAG-Compliance/wcagc-mcp/badges/score.svg)](https://glama.ai/mcp/servers/WCAG-Compliance/wcagc-mcp)
+[![smithery badge](https://smithery.ai/badge/wcag-compliance/wcagc-mcp)](https://smithery.ai/servers/wcag-compliance/wcagc-mcp)
 
 An [MCP](https://modelcontextprotocol.io) server that lets an AI assistant (Claude, ChatGPT, or
 any MCP-compatible client) run real, deterministic accessibility scans through
