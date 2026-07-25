@@ -115,3 +115,17 @@ test("get_trends reads the site's trend and carries the disclaimer, no score", a
     await client.close();
   }
 });
+
+// A scope denial used to surface as a bare "the API key does not grant the required scope",
+// leaving the assistant with no way to know which scope, or that the fix is a differently-scoped
+// key rather than a retry. The API names the scope; make sure it reaches the caller.
+test("a scope denial names the missing scope and how to obtain it", async () => {
+  const client = await connectedClient(harness.mcpUrl, TOKENS.MCP_ONLY);
+  const res: any = await client.callTool({ name: "list_sites", arguments: {} });
+  assert.equal(res.isError, true);
+  assert.equal(res.structuredContent.code, "API_KEY_SCOPE_MISSING");
+  assert.equal(res.structuredContent.requiredScope, "sites:read");
+  assert.match(res.content[0].text, /sites:read/);
+  assert.match(res.content[0].text, /mcp:scan-only key cannot reach it/);
+  await client.close();
+});

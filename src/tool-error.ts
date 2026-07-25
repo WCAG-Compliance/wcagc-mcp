@@ -26,6 +26,15 @@ export function toolError(err: unknown): ToolErrorResult {
       }
     }
     if (err.limit !== undefined) structured.limit = err.limit;
+    // Without this the caller just gets "the key does not grant the required scope" and has no
+    // way to learn which one, or that the fix is a differently-scoped key rather than a retry.
+    if (err.requiredScope) {
+      structured.requiredScope = err.requiredScope;
+      hint =
+        ` This needs an API key carrying the "${err.requiredScope}" scope. An mcp:scan-only key` +
+        ` cannot reach it: mint a key with that scope under Settings > API keys (the v1 scopes` +
+        ` require a Pro plan or higher).${hint}`;
+    }
     return {
       content: [{ type: "text", text: `${err.code}: ${err.message}${hint}` }],
       structuredContent: structured,

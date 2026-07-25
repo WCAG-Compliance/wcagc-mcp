@@ -12,6 +12,8 @@ export class McpApiError extends Error {
     message: string,
     public readonly targetPlan?: string,
     public readonly limit?: number,
+    /** Set on API_KEY_SCOPE_MISSING — the scope the key would have needed. */
+    public readonly requiredScope?: string,
   ) {
     super(message);
     this.name = "McpApiError";
@@ -34,7 +36,8 @@ async function toApiError(res: Response): Promise<McpApiError> {
   const message = typeof body.detail === "string" ? body.detail : `Request failed with status ${res.status}`;
   const targetPlan = typeof body.targetPlan === "string" ? body.targetPlan : undefined;
   const limit = typeof body.limit === "number" ? body.limit : undefined;
-  return new McpApiError(res.status, code, message, targetPlan, limit);
+  const requiredScope = typeof body.requiredScope === "string" ? body.requiredScope : undefined;
+  return new McpApiError(res.status, code, message, targetPlan, limit, requiredScope);
 }
 
 /** Never logs `bearer` — callers must not either. */

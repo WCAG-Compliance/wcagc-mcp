@@ -53,17 +53,20 @@ export function registerScanTools(server: McpServer): void {
     {
       title: "Scan a URL",
       description:
-        "Runs a deterministic axe-core accessibility scan of one http(s) URL. Omit siteHost for " +
-        "a quick ad-hoc scan of any public URL (free tier, counted against the daily quota). " +
-        "Pass siteHost to scan against a registered site instead (Pro+, requires sites:read/" +
-        "scans:write scopes) — unlocks get_run/get_run_findings, full-site scans, and trends. " +
-        "Either way this queues the scan and returns immediately with an id to poll; never " +
-        "returns a compliance score — automated testing finds only a portion of accessibility " +
-        "barriers, see coverageDisclaimer in the result.",
+        "Runs a deterministic axe-core accessibility scan of one http(s) URL. The url argument " +
+        "is ALWAYS required — siteHost never replaces it, it only changes which pipeline the " +
+        "scan runs through. Omit siteHost for a quick ad-hoc scan of any public URL (free tier, " +
+        "counted against the daily quota). Add siteHost when that URL belongs to a site " +
+        "registered in the account, to record the scan against it (Pro+, requires the " +
+        "sites:read and scans:write scopes) — that unlocks get_run/get_run_findings, full-site " +
+        "scans, and trends. Either way this queues the scan and returns immediately with an id " +
+        "to poll; never returns a compliance score — automated testing finds only a portion of " +
+        "accessibility barriers, see coverageDisclaimer in the result.",
       inputSchema: {
         url: z.string().url().max(2048).describe("The http(s) URL to scan."),
         siteHost: z.string().optional().describe(
-          "A registered site's normalized host (Pro+), e.g. \"example.com\". Omit for the free " +
+          "Optional. A registered site's normalized host (Pro+), e.g. \"example.com\" — host only, " +
+            "no scheme or path. Supplied ALONGSIDE url, never instead of it. Omit for the free " +
             "anonymous path.",
         ),
       },

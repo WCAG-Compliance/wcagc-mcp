@@ -8,6 +8,7 @@ export const TOKENS = {
   FREE_OK: "test-token-free-ok",
   FREE_EXHAUSTED: "test-token-free-exhausted",
   PRO: "test-token-pro-unlimited",
+  MCP_ONLY: "test-token-mcp-scope-only",
 } as const;
 
 interface Account {
@@ -18,6 +19,7 @@ interface Account {
 
 const ACCOUNTS: Record<string, Account> = {
   [TOKENS.FREE_OK]: { orgId: "org-free-ok", plan: "FREE", limit: 2 },
+  [TOKENS.MCP_ONLY]: { orgId: "org-mcp-only", plan: "PRO", limit: null },
   [TOKENS.FREE_EXHAUSTED]: { orgId: "org-free-exhausted", plan: "FREE", limit: 2 },
   [TOKENS.PRO]: { orgId: "org-pro", plan: "PRO", limit: null },
 };
@@ -178,6 +180,15 @@ export function createFixtureApp(): Express {
   app.get("/api/v1/sites", (req, res) => {
     if (!account(bearerFrom(req))) {
       res.status(401).json(problem(401, "API_KEY_INVALID", "Invalid API key."));
+      return;
+    }
+    // Mirrors ApiKeyAuthorization.requireScope: an mcp:scan-only key is authenticated but not
+    // authorised for the v1 surface, and the ProblemDetail names the scope it lacked.
+    if (bearerFrom(req) === TOKENS.MCP_ONLY) {
+      res.status(403).json({
+        ...problem(403, "API_KEY_SCOPE_MISSING", "The API key does not grant the required scope."),
+        requiredScope: "sites:read",
+      });
       return;
     }
     res.json([{ id: SITE_ID, name: "Example", rootUrl: `https://${SITE_HOST}`, normalizedHost: SITE_HOST, verified: true }]);
