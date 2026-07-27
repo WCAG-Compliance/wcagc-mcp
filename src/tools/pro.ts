@@ -4,7 +4,14 @@ import { apiJson, McpApiError } from "../api-client.js";
 import { resolveBearer } from "../bearer.js";
 import { COVERAGE_DISCLAIMER } from "../disclaimer.js";
 import { toolError } from "../tool-error.js";
-import { summarizeScanLike, withDisclaimer, type SeverityCounts } from "./common.js";
+import {
+  disclaimerShape,
+  failureReasonSchema,
+  severityCountsSchema,
+  summarizeScanLike,
+  withDisclaimer,
+  type SeverityCounts,
+} from "./common.js";
 
 interface V1Site {
   id: string;
@@ -12,6 +19,12 @@ interface V1Site {
   rootUrl: string;
   normalizedHost: string;
   verified: boolean;
+}
+
+/** The 202 accept from POST /scan-runs — id and status only, no counts yet. */
+interface V1RunAcceptedResponse {
+  id: string;
+  status: string;
 }
 
 interface V1ScanRunResponse {
@@ -74,6 +87,86 @@ interface V1SiteTrendResponse {
   }>;
 }
 
+const siteSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  rootUrl: z.string(),
+  normalizedHost: z.string(),
+  verified: z.boolean(),
+});
+
+const runSchema = z.object({
+  id: z.string(),
+  status: z.string(),
+  siteId: z.string().nullish(),
+  pagesTotal: z.number().nullish(),
+  pagesDone: z.number().nullish(),
+  counts: severityCountsSchema.nullish(),
+  totalViolations: z.number().nullish(),
+  failureReason: failureReasonSchema.nullish(),
+});
+
+const runViolationSchema = z.object({
+  ruleId: z.string(),
+  impact: z.string(),
+  wcagSc: z.array(z.string()),
+  url: z.string().nullish(),
+  helpUrl: z.string(),
+  target: z.string(),
+  htmlSnippet: z.string(),
+  failureSummary: z.string(),
+});
+
+const journeyRunSchema = z.object({
+  id: z.string(),
+  journeyId: z.string(),
+  siteId: z.string(),
+  status: z.string(),
+  failedStepIndex: z.number().nullish(),
+  failureReasonCode: z.string().nullish(),
+  failureReasonText: z.string().nullish(),
+  checkpoints: z.array(z.object({
+    scanId: z.string(),
+    label: z.string(),
+    url: z.string(),
+    status: z.string(),
+  })),
+  startedAt: z.string().nullish(),
+  finishedAt: z.string().nullish(),
+  createdAt: z.string(),
+});
+
+const trendSchema = z.object({
+  siteId: z.string(),
+  standard: z.string().nullish(),
+  points: z.array(z.object({
+    scanRunId: z.string(),
+    finishedAt: z.string(),
+    status: z.string(),
+    pagesScanned: z.number(),
+    truncated: z.boolean(),
+    totalViolations: z.number(),
+    bySeverity: severityCountsSchema,
+    addedCount: z.number().nullish(),
+    resolvedCount: z.number().nullish(),
+  })),
+});
+
+/** Every Pro+ tool reaches wcagc-api over the network and none of them deletes anything. */
+const READ_ONLY = {
+  readOnlyHint: true,
+  destructiveHint: false,
+  idempotentHint: true,
+  openWorldHint: true,
+} as const;
+
+const QUEUES_WORK = {
+  readOnlyHint: false,
+  destructiveHint: false,
+  idempotentHint: false,
+  openWorldHint: true,
+} as const;
+
 /** Resolves a human-given host to the registered Site the Pro+ tools operate on. */
 async function resolveSite(bearer: string, siteHost: string): Promise<V1Site> {
   const sites = await apiJson<V1Site[]>(bearer, "/api/v1/sites");
@@ -89,8 +182,11 @@ export function registerProTools(server: McpServer): void {
     "list_sites",
     {
       title: "List registered sites",
-      description: "Lists this organization's registered sites. Pro+ (requires sites:read + API_ACCESS).",
+      description: "Lists this organization's registered sites — their normalized hosts are what " +
+        "every other Pro+ tool takes as siteHost. Pro+ (requires sites:read + API_ACCESS).",
       inputSchema: {},
+      outputSchema: { sites: z.array(siteSchema) },
+      annotations: { title: "List registered sites", ...READ_ONLY },
     },
     async (_args, extra) => {
       try {
@@ -111,17 +207,25 @@ export function registerProTools(server: McpServer): void {
     {
       title: "Start a full-site scan",
       description: "Crawls and scans every reachable page of a registered site. Pro+ " +
-        "(SCAN_FULL_SITE). Queues the run and returns immediately with a runId — call get_run to poll.",
-      inputSchema: { siteHost: z.string().describe("The registered site's normalized host.") },
+        "(SCAN_FULL_SITE). Queues the run and returns immediately with a runId — call get_run to poll. " +
+        "Call list_sites first if you do not already know the exact registered host.",
+      inputSchema: {
+        siteHost: z.string().describe(
+          "The registered site's normalized host, exactly as list_sites reports it — host only, no scheme and no path.",
+        ),
+      },
+      outputSchema: { run: runSchema, ...disclaimerShape },
+      annotations: { title: "Start a full-site scan", ...QUEUES_WORK },
     },
     async ({ siteHost }, extra) => {
       try {
         const bearer = resolveBearer(extra);
         const site = await resolveSite(bearer, siteHost);
-        const run = await apiJson<V1ScanRunResponse>(bearer, "/api/v1/scan-runs", {
+        const accepted = await apiJson<V1RunAcceptedResponse>(bearer, "/api/v1/scan-runs", {
           method: "POST",
           body: JSON.stringify({ siteId: site.id }),
         });
+        const run = { ...accepted, siteId: site.id };
         const response = withDisclaimer({ run });
         return {
           content: [{ type: "text" as const, text: summarizeScanLike(run, `Full-site run for ${siteHost}`, "Still in progress — call get_run to poll.") }],
@@ -137,8 +241,12 @@ export function registerProTools(server: McpServer): void {
     "get_run",
     {
       title: "Get a full-site scan run by id",
-      description: "Polls a full-site run from scan_site, or a scan_url result whose pollWith says get_run. Pro+.",
-      inputSchema: { runId: z.string().uuid() },
+      description: "Polls a full-site run started by scan_site — page progress, severity counts " +
+        "and, once terminal, a failure reason. Pro+. For a single-page scan from scan_url, use " +
+        "get_scan instead.",
+      inputSchema: { runId: z.string().uuid().describe("The id returned by scan_site.") },
+      outputSchema: { run: runSchema, ...disclaimerShape },
+      annotations: { title: "Get a full-site scan run by id", ...READ_ONLY },
     },
     async ({ runId }, extra) => {
       try {
@@ -159,8 +267,12 @@ export function registerProTools(server: McpServer): void {
     "get_run_findings",
     {
       title: "Get a full-site scan run's findings",
-      description: "Run-level, rule-deduplicated findings for a scan_site run. Pro+.",
-      inputSchema: { runId: z.string().uuid() },
+      description: "Run-level, rule-deduplicated findings for a scan_site run — one entry per " +
+        "rule, with the WCAG success criteria it maps to. Pro+. For a single-page scan from " +
+        "scan_url, use get_findings instead.",
+      inputSchema: { runId: z.string().uuid().describe("The id returned by scan_site.") },
+      outputSchema: { violations: z.array(runViolationSchema) },
+      annotations: { title: "Get a full-site scan run's findings", ...READ_ONLY },
     },
     async ({ runId }, extra) => {
       try {
@@ -189,9 +301,11 @@ export function registerProTools(server: McpServer): void {
         "from the journey's own saved configuration — never accepted here. Queues the run and " +
         "returns immediately with a runId — call get_journey_run to poll.",
       inputSchema: {
-        siteHost: z.string().describe("The registered site's normalized host."),
+        siteHost: z.string().describe("The registered site's normalized host, as list_sites reports it."),
         journeyName: z.string().describe("The saved journey's name, as configured in the app."),
       },
+      outputSchema: { run: journeyRunSchema, ...disclaimerShape },
+      annotations: { title: "Run a saved user journey", ...QUEUES_WORK },
     },
     async ({ siteHost, journeyName }, extra) => {
       try {
@@ -219,7 +333,9 @@ export function registerProTools(server: McpServer): void {
       title: "Get a journey run by id",
       description: "Polls a run started by run_journey — per-step checkpoints and, once terminal, " +
         "a failure reason if a step failed. Pro+.",
-      inputSchema: { runId: z.string().uuid() },
+      inputSchema: { runId: z.string().uuid().describe("The id returned by run_journey.") },
+      outputSchema: { run: journeyRunSchema, ...disclaimerShape },
+      annotations: { title: "Get a journey run by id", ...READ_ONLY },
     },
     async ({ runId }, extra) => {
       try {
@@ -243,9 +359,11 @@ export function registerProTools(server: McpServer): void {
         "completed full-site runs — counts by severity and, where a comparison exists, " +
         "added/resolved markers. No score. Pro+ (TREND_HISTORY).",
       inputSchema: {
-        siteHost: z.string().describe("The registered site's normalized host."),
+        siteHost: z.string().describe("The registered site's normalized host, as list_sites reports it."),
         limit: z.number().int().min(1).max(100).optional().describe("Most recent N runs (default 30, max 100)."),
       },
+      outputSchema: { trend: trendSchema, ...disclaimerShape },
+      annotations: { title: "Get a site's violation-count trend", ...READ_ONLY },
     },
     async ({ siteHost, limit }, extra) => {
       try {

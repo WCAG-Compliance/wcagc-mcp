@@ -30,6 +30,8 @@ export const SITE_HOST = "example.com";
 const JOURNEY_ID = "22222222-2222-2222-2222-222222222222";
 const JOURNEY_NAME = "Checkout";
 const RUN_ID = "33333333-3333-3333-3333-333333333333";
+/** The id POST /api/v1/scans hands back — a single-page scan kept against the registered site. */
+export const REGISTERED_SCAN_ID = "66666666-6666-6666-6666-666666666666";
 const JOURNEY_RUN_ID = "44444444-4444-4444-4444-444444444444";
 const CHECKPOINT_SCAN_ID = "55555555-5555-5555-5555-555555555555";
 
@@ -137,9 +139,16 @@ export function createFixtureApp(options: { jwks?: JsonWebKey[] } = {}): Express
     res.status(202).json(scanResponse(`scan-${used}`));
   });
 
+  // One-off scans live in their own non-tenant table, so a scan recorded against a registered
+  // site is genuinely absent here — the real endpoint 404s for it, and that 404 is what tells
+  // get_scan to look on the registered path instead.
   app.get("/api/v1/mcp/scans/:id", (req, res) => {
     if (!account(bearerFrom(req))) {
       res.status(401).json(problem(401, "API_KEY_INVALID", "Invalid API key."));
+      return;
+    }
+    if (req.params.id === REGISTERED_SCAN_ID) {
+      res.status(404).json(problem(404, "SCAN_NOT_FOUND", "Public scan not found."));
       return;
     }
     res.json(scanResponse(req.params.id));
@@ -148,6 +157,10 @@ export function createFixtureApp(options: { jwks?: JsonWebKey[] } = {}): Express
   app.get("/api/v1/mcp/scans/:id/violations", (req, res) => {
     if (!account(bearerFrom(req))) {
       res.status(401).json(problem(401, "API_KEY_INVALID", "Invalid API key."));
+      return;
+    }
+    if (req.params.id === REGISTERED_SCAN_ID) {
+      res.status(404).json(problem(404, "SCAN_NOT_FOUND", "Public scan not found."));
       return;
     }
     res.json(scanResponse(req.params.id).scan.topViolations);
@@ -218,11 +231,32 @@ export function createFixtureApp(options: { jwks?: JsonWebKey[] } = {}): Express
       res.status(404).json(problem(404, "SITE_NOT_FOUND", "Register the site before starting an API scan."));
       return;
     }
-    res.status(202).json({
-      id: "scan-registered-1", siteId: SITE_ID, status: "QUEUED",
-      requestedUrl: req.body.url, counts: { critical: 0, serious: 0, moderate: 0, minor: 0 },
-      totalViolations: 0, failureReason: null,
+    // V1ScanAcceptedResponse — an id and a status, nothing else. Mirroring the real 202 exactly
+    // matters: a fixture that answered with counts and a requestedUrl is what let a build stay
+    // green while production printed "Scan for undefined".
+    res.status(202).json({ id: REGISTERED_SCAN_ID, status: "QUEUED" });
+  });
+
+  app.get("/api/v1/scans/:id", (req, res) => {
+    if (!account(bearerFrom(req))) {
+      res.status(401).json(problem(401, "API_KEY_INVALID", "Invalid API key."));
+      return;
+    }
+    res.json({
+      id: req.params.id, siteId: SITE_ID, status: "DONE", requestedUrl: `https://${SITE_HOST}/pricing`,
+      counts: { critical: 1, serious: 0, moderate: 0, minor: 0 }, totalViolations: 1,
+      failureReason: null,
     });
+  });
+
+  app.get("/api/v1/scans/:id/violations", (req, res) => {
+    if (!account(bearerFrom(req))) {
+      res.status(401).json(problem(401, "API_KEY_INVALID", "Invalid API key."));
+      return;
+    }
+    res.json([{ ruleId: "image-alt", impact: "critical", wcagSc: ["1.1.1"], url: `https://${SITE_HOST}/pricing`,
+      helpUrl: "https://example.com/help", target: "img.hero", htmlSnippet: "<img>",
+      failureSummary: "Add an alt attribute" }]);
   });
 
   app.post("/api/v1/scan-runs", (req, res) => {
@@ -230,7 +264,8 @@ export function createFixtureApp(options: { jwks?: JsonWebKey[] } = {}): Express
       res.status(401).json(problem(401, "API_KEY_INVALID", "Invalid API key."));
       return;
     }
-    res.status(202).json(runResponse(RUN_ID, req.body.siteId));
+    // V1ScanAcceptedResponse again — POST /scan-runs does not return progress or counts either.
+    res.status(202).json({ id: RUN_ID, status: "QUEUED" });
   });
 
   app.get("/api/v1/scan-runs/:id", (req, res) => {

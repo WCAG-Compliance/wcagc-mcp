@@ -4,6 +4,7 @@ import { apiJson } from "../api-client.js";
 import { resolveBearer } from "../bearer.js";
 import { fetchPdf, PdfFetchError } from "../pdf-fetch.js";
 import { toolError } from "../tool-error.js";
+import { disclaimerShape } from "./common.js";
 
 interface McpPdfCheckResponse {
   pdfCheck: {
@@ -34,6 +35,22 @@ function summarizeText(response: McpPdfCheckResponse): string {
   return parts.join(" ");
 }
 
+const pdfCheckOutputShape = {
+  pdfCheck: z.object({
+    id: z.string(),
+    status: z.string(),
+    profile: z.string(),
+    summary: z.object({
+      totalAssertions: z.number().nullish(),
+      failedRuleCount: z.number().nullish(),
+      failedCheckCount: z.number().nullish(),
+      reportTruncated: z.boolean().nullish(),
+    }).nullish(),
+    failureReason: z.object({ code: z.string(), reason: z.string().nullish() }).nullish(),
+  }),
+  ...disclaimerShape,
+};
+
 export function registerPdfTools(server: McpServer): void {
   server.registerTool(
     "check_pdf",
@@ -46,6 +63,15 @@ export function registerPdfTools(server: McpServer): void {
         "with an id; call get_pdf_check to poll.",
       inputSchema: {
         url: z.string().url().max(2048).describe("A public URL serving a PDF file."),
+      },
+      outputSchema: pdfCheckOutputShape,
+      annotations: {
+        title: "Check a PDF for PDF/UA-1 conformance",
+        // Downloads the URL and spends a daily quota slot; adds a check record, removes nothing.
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: false,
+        openWorldHint: true,
       },
     },
     async ({ url }, extra) => {
@@ -79,8 +105,17 @@ export function registerPdfTools(server: McpServer): void {
     "get_pdf_check",
     {
       title: "Get a PDF check by id",
-      description: "Polls a PDF check started by check_pdf.",
-      inputSchema: { checkId: z.string().uuid() },
+      description: "Polls a PDF check started by check_pdf — status, failed-rule and failed-check " +
+        "counts, and a failure reason if it did not complete.",
+      inputSchema: { checkId: z.string().uuid().describe("The id returned by check_pdf.") },
+      outputSchema: pdfCheckOutputShape,
+      annotations: {
+        title: "Get a PDF check by id",
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
     },
     async ({ checkId }, extra) => {
       try {

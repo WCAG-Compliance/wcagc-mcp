@@ -62,12 +62,15 @@ ChatGPT availability depends on the ChatGPT plan and on whether the client permi
 |---|---|---|
 | `scan_url` | all | Scan any public URL, or a registered site for full tracking (Pro+). |
 | `check_pdf` | all | Run a PDF/UA-1 structure check on a public PDF. |
-| `get_scan` · `get_findings` | all | Read a scan's status, severity counts, and findings. |
+| `get_scan` · `get_findings` | all | Read a `scan_url` scan's status, severity counts, and findings — either kind, recorded or one-off. |
 | `list_sites` | Pro+ | List the account's registered sites. |
 | `scan_site` | Pro+ | Crawl and scan every reachable page of a registered site. |
-| `get_run` · `get_run_findings` | Pro+ | Read a full-site run. |
+| `get_run` · `get_run_findings` | Pro+ | Read a full-site run from `scan_site`. |
 | `run_journey` | Pro+ | Replay a saved multi-step journey and check each step. |
 | `get_trends` | Pro+ | Read a site's violation-count history over time. |
+
+One id, one poll tool: whatever `scan_url` did with a URL, `get_scan` and `get_findings` read it
+back. `get_run` and `get_run_findings` are only for full-site runs from `scan_site`.
 
 Every scan-producing tool returns the coverage disclaimer in both the text content and the
 structured content. There is no score, grade, or conformance verdict — automated testing finds

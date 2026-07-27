@@ -33,9 +33,43 @@ test("scan_url records the scan against a registered site without being told to"
   });
   assert.equal(res.isError, undefined);
   assert.equal(res.structuredContent.recordedAgainstSite, true);
-  assert.equal(res.structuredContent.pollWith, "get_run");
+  assert.equal(res.structuredContent.pollWith, "get_scan");
   assert.ok(res.structuredContent.coverageDisclaimer);
+  // POST /api/v1/scans answers with an id and a status only. Anything the summary claims beyond
+  // that has to come from what the caller passed in, or it prints "undefined".
+  assert.equal(res.structuredContent.scan.requestedUrl, `https://${SITE_HOST}/pricing`);
+  assert.match(res.content[0].text, new RegExp(`Scan for https://${SITE_HOST}/pricing`));
+  assert.doesNotMatch(res.content[0].text, /undefined/);
   await client.close();
+});
+
+// The other half of the round trip. A registered-site scan is absent from the one-off scan table,
+// so polling it used to dead-end on SCAN_NOT_FOUND no matter which tool the caller reached for.
+test("get_scan and get_findings follow a registered-site scan to the right endpoint", async () => {
+  const client = await connectedClient(harness.mcpUrl, TOKENS.PRO);
+  try {
+    const started: any = await client.callTool({
+      name: "scan_url",
+      arguments: { url: `https://${SITE_HOST}/pricing` },
+    });
+    const scanId = started.structuredContent.scan.id;
+
+    const polled: any = await client.callTool({ name: "get_scan", arguments: { scanId } });
+    assert.equal(polled.isError, undefined, JSON.stringify(polled.content));
+    assert.equal(polled.structuredContent.recordedAgainstSite, true);
+    assert.equal(polled.structuredContent.scan.totalViolations, 1);
+    assert.ok(polled.structuredContent.coverageDisclaimer);
+    assert.doesNotMatch(polled.content[0].text, /undefined/);
+
+    const findings: any = await client.callTool({ name: "get_findings", arguments: { scanId } });
+    assert.equal(findings.isError, undefined, JSON.stringify(findings.content));
+    assert.equal(findings.structuredContent.recordedAgainstSite, true);
+    assert.equal(findings.structuredContent.violations[0].ruleId, "image-alt");
+    // The registered endpoint calls it `target`; callers only ever see `targetSelector`.
+    assert.equal(findings.structuredContent.violations[0].targetSelector, "img.hero");
+  } finally {
+    await client.close();
+  }
 });
 
 // The whole point: an unregistered URL still scans. The caller passes a URL and gets a result —

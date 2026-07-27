@@ -32,8 +32,8 @@ export function toolError(err: unknown): ToolErrorResult {
     if (err.code === "SITE_NOT_FOUND") {
       hint =
         " Call list_sites to see the registered hosts and use one of them verbatim as siteHost" +
-        " (host only — no https:// and no trailing path). To scan a URL that is not a registered" +
-        " site, omit siteHost entirely and the free path is used instead." + hint;
+        " (host only — no https:// and no trailing path). To scan a URL on a site that is not" +
+        " registered, use scan_url: it takes the URL alone and falls back to a one-off scan." + hint;
     }
     // Without this the caller just gets "the key does not grant the required scope" and has no
     // way to learn which one, or that the fix is a differently-scoped key rather than a retry.
