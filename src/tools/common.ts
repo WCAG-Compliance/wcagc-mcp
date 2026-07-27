@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { COVERAGE_DISCLAIMER, STANDARD_WCAG21_AA } from "../disclaimer.js";
+import { COVERAGE_DISCLAIMER, NO_SCORE_INSTRUCTION, STANDARD_WCAG21_AA } from "../disclaimer.js";
 
 export interface SeverityCounts {
   critical: number;
@@ -27,10 +27,13 @@ export const failureReasonSchema = z.object({
   reason: z.string().nullish(),
 });
 
-/** Both fields are on every scan-shaped result — the honesty contract, never omitted. */
+/** All three are on every scan-shaped result — the honesty contract, never omitted. */
 export const disclaimerShape = {
   coverageDisclaimer: z.string().describe(
     "Why this result is not a compliance verdict. Always relay it; never present a scan as proof of conformance.",
+  ),
+  scoringGuidance: z.string().describe(
+    "Binding instruction for the assistant reading this result. Follow it literally.",
   ),
   standard: z.string().describe("The standard the checks were run against, e.g. \"WCAG 2.1 AA\"."),
 };
@@ -56,10 +59,12 @@ export interface ScanLike {
  * this wrapper keeps both paths structurally identical for the calling tool.
  */
 export function withDisclaimer<T>(payload: T, standard: string = STANDARD_WCAG21_AA) {
-  return { ...payload, coverageDisclaimer: COVERAGE_DISCLAIMER, standard } as T & {
-    coverageDisclaimer: string;
-    standard: string;
-  };
+  return {
+    ...payload,
+    coverageDisclaimer: COVERAGE_DISCLAIMER,
+    scoringGuidance: NO_SCORE_INSTRUCTION,
+    standard,
+  } as T & { coverageDisclaimer: string; scoringGuidance: string; standard: string };
 }
 
 const TERMINAL_OK = new Set(["DONE", "COMPLETED", "PARTIAL"]);
@@ -72,6 +77,8 @@ export function summarizeScanLike(scan: ScanLike, label: string, pollHint: strin
       `${scan.totalViolations ?? 0} issue(s) found (critical ${c.critical}, serious ${c.serious}, ` +
         `moderate ${c.moderate}, minor ${c.minor}).`,
     );
+    // Only once there are numbers on the table — that is the moment a reader starts dividing them.
+    parts.push(NO_SCORE_INSTRUCTION);
   } else if (scan.failureReason) {
     parts.push(`Did not complete: ${scan.failureReason.code}.`);
   } else {

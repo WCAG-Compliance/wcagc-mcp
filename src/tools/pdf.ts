@@ -4,7 +4,7 @@ import { apiJson } from "../api-client.js";
 import { resolveBearer } from "../bearer.js";
 import { fetchPdf, PdfFetchError } from "../pdf-fetch.js";
 import { toolError } from "../tool-error.js";
-import { disclaimerShape } from "./common.js";
+import { disclaimerShape, withDisclaimer } from "./common.js";
 
 interface McpPdfCheckResponse {
   pdfCheck: {
@@ -86,7 +86,7 @@ export function registerPdfTools(server: McpServer): void {
         });
         return {
           content: [{ type: "text" as const, text: summarizeText(response) }],
-          structuredContent: response as unknown as Record<string, unknown>,
+          structuredContent: withDisclaimer(response, response.standard) as unknown as Record<string, unknown>,
         };
       } catch (err) {
         if (err instanceof PdfFetchError) {
@@ -123,7 +123,7 @@ export function registerPdfTools(server: McpServer): void {
         const response = await apiJson<McpPdfCheckResponse>(bearer, `/api/v1/mcp/pdf-checks/${checkId}`);
         return {
           content: [{ type: "text" as const, text: summarizeText(response) }],
-          structuredContent: response as unknown as Record<string, unknown>,
+          structuredContent: withDisclaimer(response, response.standard) as unknown as Record<string, unknown>,
         };
       } catch (err) {
         return toolError(err);

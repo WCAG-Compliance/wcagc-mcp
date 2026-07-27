@@ -191,7 +191,12 @@ export function registerScanTools(server: McpServer): void {
             method: "POST",
             body: JSON.stringify({ url }),
           });
-          const response = { ...free, recordedAgainstSite: false, pollWith: "get_scan" as const };
+          // withDisclaimer, not a raw spread: the API sends coverageDisclaimer and standard, but
+          // scoringGuidance is this server's own addition and must be on both paths alike.
+          const response = withDisclaimer(
+            { ...free, recordedAgainstSite: false, pollWith: "get_scan" as const },
+            free.standard,
+          );
           return {
             content: [{
               type: "text" as const,

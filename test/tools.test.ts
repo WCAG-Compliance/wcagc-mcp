@@ -43,6 +43,29 @@ test("get_scan and get_findings — read an existing scan", async () => {
   }
 });
 
+/**
+ * Regression: ChatGPT read passesCount 30 / incompleteCount 1 off a wcagc.com scan and reported
+ * "97/100" (2026-07-27). The refusal has to reach the assistant with the numbers, in both
+ * channels, or the next model does the same arithmetic.
+ */
+test("a result carrying counts also carries the instruction not to score them", async () => {
+  const client = await connectedClient(harness.mcpUrl, TOKENS.FREE_OK);
+  try {
+    const result: any = await client.callTool({
+      name: "get_scan",
+      arguments: { scanId: "11111111-1111-1111-1111-111111111111" },
+    });
+    assert.notEqual(result.isError, true);
+    for (const channel of [result.content[0].text, result.structuredContent.scoringGuidance]) {
+      assert.match(channel, /not turn these counts into a score/i);
+      assert.match(channel, /do not describe the page as compliant or accessible/i);
+    }
+    assert.ok(result.structuredContent.coverageDisclaimer);
+  } finally {
+    await client.close();
+  }
+});
+
 test("check_pdf — happy path fetches the URL and carries PDF/UA-1 + disclaimer", async () => {
   const client = await connectedClient(harness.mcpUrl, TOKENS.PRO);
   try {
