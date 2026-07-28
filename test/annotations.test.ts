@@ -37,7 +37,7 @@ test("every tool declares a title and honest annotations", async () => {
       assert.equal(annotations.destructiveHint, false, `${tool.name} destructiveHint`);
       // Only the tools that go out and load a page or a file reach an open world. The readers
       // answer from the account's own records, which is a closed, enumerable domain — claiming
-      // otherwise on all twelve was less informative, not more cautious.
+      // otherwise on every tool was less informative, not more cautious.
       assert.equal(annotations.openWorldHint, WRITES.has(tool.name), `${tool.name} openWorldHint`);
       assert.equal(typeof annotations.idempotentHint, "boolean", `${tool.name} idempotentHint`);
     }
@@ -63,13 +63,13 @@ test("every tool publishes an output schema, so structuredContent is checkable",
  * The catalog is the contract callers and directory listings are built against, so a tool
  * appearing, vanishing or being renamed should be a deliberate edit here, not a surprise.
  */
-test("the tool catalog is exactly the twelve documented tools", async () => {
+test("the tool catalog is exactly the documented tools", async () => {
   const client = await connectedClient(harness.mcpUrl, TOKENS.PRO);
   try {
     const { tools } = await client.listTools();
     assert.deepEqual(tools.map((t) => t.name).sort(), [
-      "check_pdf", "get_findings", "get_journey_run", "get_pdf_check", "get_run",
-      "get_run_findings", "get_scan", "get_trends", "list_sites", "run_journey",
+      "check_pdf", "get_findings", "get_journey_run", "get_pdf_check", "get_root_causes",
+      "get_run", "get_run_findings", "get_scan", "get_trends", "list_sites", "run_journey",
       "scan_site", "scan_url",
     ]);
   } finally {

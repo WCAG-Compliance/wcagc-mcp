@@ -87,6 +87,37 @@ interface V1SiteTrendResponse {
   }>;
 }
 
+interface V1RootCauseResponse {
+  scope: string;
+  status: string;
+  signatureVersion: string;
+  summary: {
+    findingsTotal: number;
+    analyzedFindings: number;
+    clustersTotal: number;
+    clusteredFindings: number;
+    pagesTotal: number | null;
+  };
+  truncated: boolean;
+  clusters: Array<{
+    key: string;
+    ruleId: string;
+    impact: string;
+    wcagSc: string[];
+    pattern: string;
+    selectorSignature: string;
+    component: { label: string; source: string; platform: string | null } | null;
+    nodesCount: number;
+    pagesCount: number | null;
+    samplePages: string[];
+    sampleSelectors: string[];
+    guidance: string | null;
+    exampleFix: string | null;
+    helpUrl: string;
+  }>;
+  coverageDisclaimer: string;
+}
+
 const siteSchema = z.object({
   id: z.string(),
   name: z.string(),
@@ -150,6 +181,41 @@ const trendSchema = z.object({
     addedCount: z.number().nullish(),
     resolvedCount: z.number().nullish(),
   })),
+});
+
+const rootCausesSchema = z.object({
+  scope: z.string(),
+  status: z.string(),
+  signatureVersion: z.string(),
+  summary: z.object({
+    findingsTotal: z.number(),
+    analyzedFindings: z.number(),
+    clustersTotal: z.number(),
+    clusteredFindings: z.number(),
+    pagesTotal: z.number().nullish(),
+  }),
+  truncated: z.boolean(),
+  clusters: z.array(z.object({
+    key: z.string(),
+    ruleId: z.string(),
+    impact: z.string(),
+    wcagSc: z.array(z.string()),
+    pattern: z.string(),
+    selectorSignature: z.string(),
+    component: z.object({
+      label: z.string(),
+      source: z.string(),
+      platform: z.string().nullish(),
+    }).nullish(),
+    nodesCount: z.number(),
+    pagesCount: z.number().nullish(),
+    samplePages: z.array(z.string()),
+    sampleSelectors: z.array(z.string()),
+    guidance: z.string().nullish(),
+    exampleFix: z.string().nullish(),
+    helpUrl: z.string(),
+  })),
+  coverageDisclaimer: z.string(),
 });
 
 /**
@@ -293,6 +359,41 @@ export function registerProTools(server: McpServer): void {
         return {
           content: [{ type: "text" as const, text }],
           structuredContent: { violations } as unknown as Record<string, unknown>,
+        };
+      } catch (err) {
+        return toolError(err);
+      }
+    },
+  );
+
+  server.registerTool(
+    "get_root_causes",
+    {
+      title: "Get a scan run's root causes",
+      description: "Returns deterministic repeated DOM patterns and factual blast-radius counts " +
+        "for a full-site run. Grouping does not expand automated-test coverage and may not match " +
+        "the site's real component boundaries. Pro+.",
+      inputSchema: { runId: z.string().uuid().describe("The id returned by scan_site.") },
+      outputSchema: { rootCauses: rootCausesSchema },
+      annotations: { title: "Get a scan run's root causes", ...READ_ONLY },
+    },
+    async ({ runId }, extra) => {
+      try {
+        const bearer = resolveBearer(extra);
+        const rootCauses = await apiJson<V1RootCauseResponse>(
+          bearer,
+          `/api/v1/scan-runs/${runId}/root-causes`,
+        );
+        const facts = rootCauses.clusters.length === 0
+          ? `No root-cause clusters recorded for run ${runId} yet.`
+          : rootCauses.clusters.map((cluster) =>
+              `[${cluster.impact}] ${cluster.ruleId}: ${cluster.nodesCount} finding(s)` +
+              `${cluster.pagesCount === null ? "" : ` across ${cluster.pagesCount} page(s)`}` +
+              " share this pattern.",
+            ).join("\n");
+        return {
+          content: [{ type: "text" as const, text: `${facts}\n\n${rootCauses.coverageDisclaimer}` }],
+          structuredContent: { rootCauses } as unknown as Record<string, unknown>,
         };
       } catch (err) {
         return toolError(err);

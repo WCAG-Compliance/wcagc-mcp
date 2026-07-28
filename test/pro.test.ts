@@ -163,6 +163,50 @@ test("get_trends reads the site's trend and carries the disclaimer, no score", a
   }
 });
 
+test("get_root_causes returns factual blast radius and the coverage disclaimer", async () => {
+  const client = await connectedClient(harness.mcpUrl, TOKENS.PRO);
+  try {
+    const result = await client.callTool({
+      name: "get_root_causes",
+      arguments: { runId: "33333333-3333-3333-3333-333333333333" },
+    });
+    assert.notEqual(result.isError, true);
+    const structured = result.structuredContent as {
+      rootCauses: {
+        signatureVersion: string;
+        clusters: Array<{ nodesCount: number; pagesCount: number }>;
+        coverageDisclaimer: string;
+      };
+    };
+    assert.equal(structured.rootCauses.signatureVersion, "rcg1");
+    assert.equal(structured.rootCauses.clusters[0].nodesCount, 6);
+    assert.equal(structured.rootCauses.clusters[0].pagesCount, 3);
+    assert.ok(structured.rootCauses.coverageDisclaimer);
+    const text = (result.content as Array<{ text: string }>)[0].text;
+    assert.match(text, /6 finding\(s\) across 3 page\(s\)/);
+    assert.match(text, /does not expand coverage/i);
+    assert.doesNotMatch(text, /compliant|guarantee/i);
+  } finally {
+    await client.close();
+  }
+});
+
+test("get_root_causes preserves the API_ACCESS paywall", async () => {
+  const client = await connectedClient(harness.mcpUrl, TOKENS.FREE_OK);
+  try {
+    const result = await client.callTool({
+      name: "get_root_causes",
+      arguments: { runId: "33333333-3333-3333-3333-333333333333" },
+    });
+    assert.equal(result.isError, true);
+    const structured = result.structuredContent as { code: string; targetPlan: string };
+    assert.equal(structured.code, "FEATURE_NOT_IN_PLAN");
+    assert.equal(structured.targetPlan, "PRO");
+  } finally {
+    await client.close();
+  }
+});
+
 // A scope denial used to surface as a bare "the API key does not grant the required scope",
 // leaving the assistant with no way to know which scope, or that the fix is a differently-scoped
 // key rather than a retry. The API names the scope; make sure it reaches the caller.
@@ -176,4 +220,3 @@ test("a scope denial names the missing scope and how to obtain it", async () => 
   assert.match(res.content[0].text, /mcp:scan-only key cannot reach it/);
   await client.close();
 });
-

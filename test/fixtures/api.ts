@@ -284,6 +284,57 @@ export function createFixtureApp(options: { jwks?: JsonWebKey[] } = {}): Express
     res.json([{ ruleId: "image-alt", impact: "critical", wcagSc: ["1.1.1"], url: `https://${SITE_HOST}`, helpUrl: "https://example.com/help", target: "img", htmlSnippet: "<img>", failureSummary: "Add an alt attribute" }]);
   });
 
+  app.get("/api/v1/scan-runs/:id/root-causes", (req, res) => {
+    const token = bearerFrom(req);
+    const acc = account(token);
+    if (!acc) {
+      res.status(401).json(problem(401, "API_KEY_INVALID", "Invalid API key."));
+      return;
+    }
+    if (token === TOKENS.MCP_ONLY) {
+      res.status(403).json({
+        ...problem(403, "API_KEY_SCOPE_MISSING", "The API key does not grant the required scope."),
+        requiredScope: "scans:read",
+      });
+      return;
+    }
+    if (acc.plan === "FREE") {
+      res.status(403).json({
+        ...problem(403, "FEATURE_NOT_IN_PLAN", "API_ACCESS requires a Pro plan."),
+        feature: "API_ACCESS",
+        targetPlan: "PRO",
+      });
+      return;
+    }
+    res.json({
+      scope: "SCAN_RUN",
+      status: "COMPLETED",
+      signatureVersion: "rcg1",
+      summary: {
+        findingsTotal: 6, analyzedFindings: 6, clustersTotal: 1,
+        clusteredFindings: 6, pagesTotal: 3,
+      },
+      truncated: false,
+      clusters: [{
+        key: "0123456789abcdef",
+        ruleId: "image-alt",
+        impact: "critical",
+        wcagSc: ["1.1.1"],
+        pattern: "SIGNATURE",
+        selectorSignature: "article.product-card > img",
+        component: { label: "product-card", source: "ATTRIBUTE", platform: null },
+        nodesCount: 6,
+        pagesCount: 3,
+        samplePages: [`https://${SITE_HOST}/one`, `https://${SITE_HOST}/two`],
+        sampleSelectors: ["article.product-card > img"],
+        guidance: "Add meaningful alternative text.",
+        exampleFix: "<img alt=\"Product name\">",
+        helpUrl: "https://example.com/help",
+      }],
+      coverageDisclaimer: "Automated testing finds only a portion of accessibility barriers (commonly 30–57%). Root-cause grouping does not expand coverage and may not match the site's real component boundaries.",
+    });
+  });
+
   app.get("/api/v1/sites/:id/journeys", (req, res) => {
     if (!account(bearerFrom(req))) {
       res.status(401).json(problem(401, "API_KEY_INVALID", "Invalid API key."));

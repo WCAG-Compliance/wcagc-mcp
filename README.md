@@ -66,6 +66,7 @@ ChatGPT availability depends on the ChatGPT plan and on whether the client permi
 | `list_sites` | Pro+ | List the account's registered sites. |
 | `scan_site` | Pro+ | Crawl and scan every reachable page of a registered site. |
 | `get_run` · `get_run_findings` | Pro+ | Read a full-site run from `scan_site`. |
+| `get_root_causes` | Pro+ | Group a run's repeated DOM patterns and return factual element/page blast radius. |
 | `run_journey` | Pro+ | Replay a saved multi-step journey and check each step. |
 | `get_trends` | Pro+ | Read a site's violation-count history over time. |
 
