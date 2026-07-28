@@ -152,14 +152,23 @@ const trendSchema = z.object({
   })),
 });
 
-/** Every Pro+ tool reaches wcagc-api over the network and none of them deletes anything. */
+/**
+ * Reading back a record the account already owns. The domain is closed and enumerable — one id,
+ * one answer, no part of the open web is touched — so openWorldHint is false here even though
+ * the call still crosses the network to wcagc-api.
+ */
 const READ_ONLY = {
   readOnlyHint: true,
   destructiveHint: false,
   idempotentHint: true,
-  openWorldHint: true,
+  openWorldHint: false,
 } as const;
 
+/**
+ * Queues real work that drives a browser against pages out on the internet, and spends quota
+ * doing it. Nothing is ever deleted or overwritten — a scan only appends — so destructive stays
+ * false, but the world it reaches into is open and the outcome is not repeatable.
+ */
 const QUEUES_WORK = {
   readOnlyHint: false,
   destructiveHint: false,

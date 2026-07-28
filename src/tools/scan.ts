@@ -228,7 +228,9 @@ export function registerScanTools(server: McpServer): void {
         readOnlyHint: true,
         destructiveHint: false,
         idempotentHint: true,
-        openWorldHint: true,
+        // Reads one scan record by id — a closed domain, unlike scan_url which goes out and
+        // fetches whatever URL it is handed.
+        openWorldHint: false,
       },
     },
     async ({ scanId }, extra) => {
@@ -271,7 +273,7 @@ export function registerScanTools(server: McpServer): void {
         readOnlyHint: true,
         destructiveHint: false,
         idempotentHint: true,
-        openWorldHint: true,
+        openWorldHint: false,
       },
     },
     async ({ scanId }, extra) => {

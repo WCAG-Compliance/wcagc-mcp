@@ -35,8 +35,10 @@ test("every tool declares a title and honest annotations", async () => {
       assert.equal(annotations.readOnlyHint, !WRITES.has(tool.name), `${tool.name} readOnlyHint`);
       // Nothing this server exposes deletes or overwrites anything: a scan only ever appends.
       assert.equal(annotations.destructiveHint, false, `${tool.name} destructiveHint`);
-      // Every tool's real work happens in wcagc-api and, through it, on the open web.
-      assert.equal(annotations.openWorldHint, true, `${tool.name} openWorldHint`);
+      // Only the tools that go out and load a page or a file reach an open world. The readers
+      // answer from the account's own records, which is a closed, enumerable domain — claiming
+      // otherwise on all twelve was less informative, not more cautious.
+      assert.equal(annotations.openWorldHint, WRITES.has(tool.name), `${tool.name} openWorldHint`);
       assert.equal(typeof annotations.idempotentHint, "boolean", `${tool.name} idempotentHint`);
     }
   } finally {

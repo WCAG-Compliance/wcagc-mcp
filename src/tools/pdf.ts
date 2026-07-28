@@ -114,7 +114,8 @@ export function registerPdfTools(server: McpServer): void {
         readOnlyHint: true,
         destructiveHint: false,
         idempotentHint: true,
-        openWorldHint: true,
+        // Reads one check record by id; check_pdf is the one that downloads a URL.
+        openWorldHint: false,
       },
     },
     async ({ checkId }, extra) => {
