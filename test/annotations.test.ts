@@ -14,7 +14,7 @@ after(async () => {
 });
 
 /** The tools that queue work or spend quota. Everything else must declare itself read-only. */
-const WRITES = new Set(["scan_url", "scan_site", "check_pdf", "run_journey"]);
+const WRITES = new Set(["scan_url", "scan_site", "check_pdf", "run_journey", "verify_fix"]);
 
 /**
  * Both directories gate listing on this: every tool needs a title and a truthful read-only or
@@ -68,9 +68,9 @@ test("the tool catalog is exactly the documented tools", async () => {
   try {
     const { tools } = await client.listTools();
     assert.deepEqual(tools.map((t) => t.name).sort(), [
-      "check_pdf", "get_findings", "get_journey_run", "get_pdf_check", "get_root_causes",
-      "get_run", "get_run_findings", "get_scan", "get_trends", "list_sites", "run_journey",
-      "scan_site", "scan_url",
+      "check_pdf", "get_findings", "get_fix_verification", "get_fixes", "get_journey_run",
+      "get_pdf_check", "get_root_causes", "get_run", "get_run_findings", "get_scan",
+      "get_trends", "list_sites", "run_journey", "scan_site", "scan_url", "verify_fix",
     ]);
   } finally {
     await client.close();

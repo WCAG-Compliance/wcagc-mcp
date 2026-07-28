@@ -34,6 +34,8 @@ const RUN_ID = "33333333-3333-3333-3333-333333333333";
 export const REGISTERED_SCAN_ID = "66666666-6666-6666-6666-666666666666";
 const JOURNEY_RUN_ID = "44444444-4444-4444-4444-444444444444";
 const CHECKPOINT_SCAN_ID = "55555555-5555-5555-5555-555555555555";
+export const FIX_ID = "77777777-7777-7777-7777-777777777777";
+export const FIX_VERIFICATION_ID = "88888888-8888-8888-8888-888888888888";
 
 const usage = new Map<string, number>();
 usage.set(TOKENS.FREE_EXHAUSTED, 2); // pre-exhausted so the very next scan-url call is denied
@@ -372,6 +374,33 @@ export function createFixtureApp(options: { jwks?: JsonWebKey[] } = {}): Express
     });
   });
 
+  app.get("/api/v1/sites/:id/fixes", (req, res) => {
+    if (!account(bearerFrom(req))) {
+      res.status(401).json(problem(401, "API_KEY_INVALID", "Invalid API key."));
+      return;
+    }
+    res.json([{ id: FIX_ID, siteId: req.params.id, ruleId: "image-alt", impact: "critical",
+      rootCauseKey: "rcg1:image-alt", componentLabel: "product-card", status: "READY_TO_VERIFY",
+      verifiedScope: null, verifiedAt: null, verifiedPagesCount: null, nodesCountAtTracking: 6,
+      pagesCountAtTracking: 3, verifiable: true }]);
+  });
+
+  app.post("/api/v1/remediation-items/:id/verifications", (req, res) => {
+    if (!account(bearerFrom(req))) {
+      res.status(401).json(problem(401, "API_KEY_INVALID", "Invalid API key."));
+      return;
+    }
+    res.status(202).json({ id: FIX_VERIFICATION_ID, status: "QUEUED" });
+  });
+
+  app.get("/api/v1/fix-verifications/:id", (req, res) => {
+    if (!account(bearerFrom(req))) {
+      res.status(401).json(problem(401, "API_KEY_INVALID", "Invalid API key."));
+      return;
+    }
+    res.json(fixVerificationResponse(req.params.id, FIX_ID, "COMPLETED", "NOT_DETECTED"));
+  });
+
   return app;
 }
 
@@ -388,6 +417,17 @@ function journeyRunResponse(id: string, journeyId: string) {
     failureReasonCode: null, failureReasonText: null,
     checkpoints: [{ scanId: CHECKPOINT_SCAN_ID, label: "Home", url: `https://${SITE_HOST}`, status: "QUEUED" }],
     startedAt: null, finishedAt: null, createdAt: "2026-01-01T00:00:00Z",
+  };
+}
+
+function fixVerificationResponse(id: string, remediationItemId: string, status: string, outcome: string | null) {
+  return {
+    id, remediationItemId, siteId: SITE_ID, status, outcome, source: "API",
+    scopeGranularity: "ROOT_CAUSE", rootCauseKey: "rcg1:image-alt", pagesRequested: 3,
+    pagesScanned: status === "COMPLETED" ? 3 : 0, pagesFailed: 0,
+    nodesFound: outcome === "NOT_DETECTED" ? 0 : null, ruleNodesFound: 0,
+    pages: [], failureReasonCode: null, startedAt: "2026-07-28T00:00:00Z",
+    finishedAt: status === "COMPLETED" ? "2026-07-28T00:01:00Z" : null,
   };
 }
 

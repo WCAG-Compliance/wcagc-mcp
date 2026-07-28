@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { after, before, test } from "node:test";
-import { SITE_HOST, TOKENS } from "./fixtures/api.js";
+import { FIX_ID, FIX_VERIFICATION_ID, SITE_HOST, TOKENS } from "./fixtures/api.js";
 import { connectedClient, startHarness, type Harness } from "./helpers/harness.js";
 
 let harness: Harness;
@@ -202,6 +202,41 @@ test("get_root_causes preserves the API_ACCESS paywall", async () => {
     const structured = result.structuredContent as { code: string; targetPlan: string };
     assert.equal(structured.code, "FEATURE_NOT_IN_PLAN");
     assert.equal(structured.targetPlan, "PRO");
+  } finally {
+    await client.close();
+  }
+});
+
+test("get_fixes lists proof scope and verify_fix returns a polling contract", async () => {
+  const client = await connectedClient(harness.mcpUrl, TOKENS.PRO);
+  try {
+    const listed: any = await client.callTool({ name: "get_fixes", arguments: { siteHost: SITE_HOST } });
+    assert.equal(listed.isError, undefined);
+    assert.equal(listed.structuredContent.fixes[0].id, FIX_ID);
+    assert.ok(listed.structuredContent.coverageDisclaimer);
+
+    const started: any = await client.callTool({ name: "verify_fix", arguments: { remediationItemId: FIX_ID } });
+    assert.equal(started.isError, undefined);
+    assert.equal(started.structuredContent.pollWith, "get_fix_verification");
+    assert.equal(started.structuredContent.verification.id, FIX_VERIFICATION_ID);
+    assert.match(started.content[0].text, /not a whole-site result/i);
+  } finally {
+    await client.close();
+  }
+});
+
+test("get_fix_verification reports selected-page evidence without a compliance claim", async () => {
+  const client = await connectedClient(harness.mcpUrl, TOKENS.PRO);
+  try {
+    const result: any = await client.callTool({
+      name: "get_fix_verification",
+      arguments: { fixVerificationId: FIX_VERIFICATION_ID },
+    });
+    assert.equal(result.isError, undefined);
+    assert.equal(result.structuredContent.verification.outcome, "NOT_DETECTED");
+    assert.match(result.content[0].text, /not detected on 3 selected page/i);
+    assert.match(result.content[0].text, /does not establish a whole-site result/i);
+    assert.doesNotMatch(result.content[0].text, /compliant|guarantee/i);
   } finally {
     await client.close();
   }

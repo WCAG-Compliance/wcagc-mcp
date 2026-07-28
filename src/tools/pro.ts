@@ -118,6 +118,47 @@ interface V1RootCauseResponse {
   coverageDisclaimer: string;
 }
 
+interface V1Fix {
+  id: string;
+  siteId: string;
+  ruleId: string;
+  impact: string;
+  rootCauseKey: string | null;
+  componentLabel: string | null;
+  status: string;
+  verifiedScope: string | null;
+  verifiedAt: string | null;
+  verifiedPagesCount: number | null;
+  nodesCountAtTracking: number | null;
+  pagesCountAtTracking: number | null;
+  verifiable: boolean;
+}
+
+interface V1FixVerification {
+  id: string;
+  remediationItemId: string;
+  siteId: string;
+  status: string;
+  outcome: string | null;
+  source: string;
+  scopeGranularity: string;
+  rootCauseKey: string | null;
+  pagesRequested: number;
+  pagesScanned: number;
+  pagesFailed: number;
+  nodesFound: number | null;
+  ruleNodesFound: number | null;
+  pages: Array<{ url: string; status: string; nodesFound: number | null }>;
+  failureReasonCode: string | null;
+  startedAt: string;
+  finishedAt: string | null;
+}
+
+interface V1FixVerificationAccepted {
+  id: string;
+  status: string;
+}
+
 const siteSchema = z.object({
   id: z.string(),
   name: z.string(),
@@ -216,6 +257,47 @@ const rootCausesSchema = z.object({
     helpUrl: z.string(),
   })),
   coverageDisclaimer: z.string(),
+});
+
+const fixSchema = z.object({
+  id: z.string().uuid(),
+  siteId: z.string().uuid(),
+  ruleId: z.string(),
+  impact: z.string(),
+  rootCauseKey: z.string().nullish(),
+  componentLabel: z.string().nullish(),
+  status: z.string(),
+  verifiedScope: z.string().nullish(),
+  verifiedAt: z.string().nullish(),
+  verifiedPagesCount: z.number().nullish(),
+  nodesCountAtTracking: z.number().nullish(),
+  pagesCountAtTracking: z.number().nullish(),
+  verifiable: z.boolean(),
+});
+
+const fixVerificationSchema = z.object({
+  id: z.string().uuid(),
+  remediationItemId: z.string().uuid(),
+  siteId: z.string().uuid(),
+  status: z.string(),
+  outcome: z.string().nullish(),
+  source: z.string(),
+  scopeGranularity: z.string(),
+  rootCauseKey: z.string().nullish(),
+  pagesRequested: z.number(),
+  pagesScanned: z.number(),
+  pagesFailed: z.number(),
+  nodesFound: z.number().nullish(),
+  ruleNodesFound: z.number().nullish(),
+  pages: z.array(z.object({ url: z.string(), status: z.string(), nodesFound: z.number().nullish() })),
+  failureReasonCode: z.string().nullish(),
+  startedAt: z.string(),
+  finishedAt: z.string().nullish(),
+});
+
+const fixVerificationAcceptedSchema = z.object({
+  id: z.string().uuid(),
+  status: z.string(),
 });
 
 /**
@@ -494,6 +576,94 @@ export function registerProTools(server: McpServer): void {
       }
     },
   );
+
+  server.registerTool(
+    "get_fixes",
+    {
+      title: "List tracked fixes",
+      description: "Lists tracked remediation items for a registered site, including status and " +
+        "the scope of any automated verification proof. Pro+ (REMEDIATION_TRACKING).",
+      inputSchema: { siteHost: z.string().describe("The registered site's normalized host, as list_sites reports it.") },
+      outputSchema: { fixes: z.array(fixSchema), ...disclaimerShape },
+      annotations: { title: "List tracked fixes", ...READ_ONLY },
+    },
+    async ({ siteHost }, extra) => {
+      try {
+        const bearer = resolveBearer(extra);
+        const site = await resolveSite(bearer, siteHost);
+        const fixes = await apiJson<V1Fix[]>(bearer, `/api/v1/sites/${site.id}/fixes`);
+        const text = fixes.length === 0 ? `No tracked fixes for ${siteHost}.` : fixes.map((fix) =>
+          `[${fix.status}] ${fix.ruleId} — ${fix.componentLabel ?? fix.rootCauseKey ?? fix.id}` +
+          (fix.verifiedScope ? `; automated proof scope: ${fix.verifiedScope}` : ""),
+        ).join("\n");
+        return {
+          content: [{ type: "text" as const, text: `${text}\n\n${COVERAGE_DISCLAIMER}` }],
+          structuredContent: withDisclaimer({ fixes }) as unknown as Record<string, unknown>,
+        };
+      } catch (err) {
+        return toolError(err);
+      }
+    },
+  );
+
+  server.registerTool(
+    "verify_fix",
+    {
+      title: "Verify a tracked fix",
+      description: "Queues a targeted automated re-check of representative pages for one tracked " +
+        "fix. This is not a full-site re-scan or a compliance guarantee. Pro+.",
+      inputSchema: { remediationItemId: z.string().uuid().describe("A fix id returned by get_fixes.") },
+      outputSchema: { verification: fixVerificationAcceptedSchema, pollWith: z.literal("get_fix_verification"), ...disclaimerShape },
+      annotations: { title: "Verify a tracked fix", ...QUEUES_WORK },
+    },
+    async ({ remediationItemId }, extra) => {
+      try {
+        const bearer = resolveBearer(extra);
+        const verification = await apiJson<V1FixVerificationAccepted>(
+          bearer,
+          `/api/v1/remediation-items/${remediationItemId}/verifications`,
+          { method: "POST" },
+        );
+        const response = withDisclaimer({ verification, pollWith: "get_fix_verification" as const });
+        return {
+          content: [{ type: "text" as const, text:
+            `Targeted verification ${verification.id} queued. Call get_fix_verification to poll. ` +
+            `This is not a whole-site result.\n\n${COVERAGE_DISCLAIMER}` }],
+          structuredContent: response as unknown as Record<string, unknown>,
+        };
+      } catch (err) {
+        return toolError(err);
+      }
+    },
+  );
+
+  server.registerTool(
+    "get_fix_verification",
+    {
+      title: "Get fix verification",
+      description: "Polls a targeted fix verification and reports only what was detected on the " +
+        "selected pages checked. Pro+.",
+      inputSchema: { fixVerificationId: z.string().uuid().describe("The id returned by verify_fix.") },
+      outputSchema: { verification: fixVerificationSchema, ...disclaimerShape },
+      annotations: { title: "Get fix verification", ...READ_ONLY },
+    },
+    async ({ fixVerificationId }, extra) => {
+      try {
+        const bearer = resolveBearer(extra);
+        const verification = await apiJson<V1FixVerification>(
+          bearer,
+          `/api/v1/fix-verifications/${fixVerificationId}`,
+        );
+        const summary = summarizeFixVerification(verification);
+        return {
+          content: [{ type: "text" as const, text: `${summary}\n\n${COVERAGE_DISCLAIMER}` }],
+          structuredContent: withDisclaimer({ verification }) as unknown as Record<string, unknown>,
+        };
+      } catch (err) {
+        return toolError(err);
+      }
+    },
+  );
 }
 
 function summarizeJourneyRun(run: V1JourneyRunResponse): string {
@@ -509,4 +679,25 @@ function summarizeJourneyRun(run: V1JourneyRunResponse): string {
   }
   parts.push(COVERAGE_DISCLAIMER);
   return parts.join(" ");
+}
+
+function summarizeFixVerification(verification: V1FixVerification): string {
+  if (verification.status === "QUEUED" || verification.status === "RUNNING") {
+    return `Targeted verification ${verification.id} is ${verification.status.toLowerCase()}: ` +
+      `${verification.pagesScanned} of ${verification.pagesRequested} selected page(s) checked.`;
+  }
+  if (verification.outcome === "NOT_DETECTED") {
+    return `The tracked pattern was not detected on ${verification.pagesScanned} selected page(s). ` +
+      "This does not establish a whole-site result.";
+  }
+  if (verification.outcome === "STILL_PRESENT") {
+    return `The tracked pattern is still detected: ${verification.nodesFound ?? 0} matching node(s) ` +
+      `on ${verification.pagesScanned} checked page(s).`;
+  }
+  if (verification.outcome === "INCONCLUSIVE") {
+    return `Verification was inconclusive: ${verification.pagesScanned} page(s) checked and ` +
+      `${verification.pagesFailed} page(s) failed.`;
+  }
+  return `Verification ended with status ${verification.status}` +
+    (verification.failureReasonCode ? ` (${verification.failureReasonCode}).` : ".");
 }
