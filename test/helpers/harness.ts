@@ -6,6 +6,7 @@ import { createFixtureApp, listen as listenFixture } from "../fixtures/api.js";
 export interface Harness {
   mcpUrl: string;
   metadataUrl: string;
+  openAiAppsChallengeUrl: string;
   oauthToken(overrides?: Record<string, unknown>, keyId?: string): string;
   close(): Promise<void>;
 }
@@ -27,6 +28,7 @@ export async function startHarness(): Promise<Harness> {
   process.env.WCAGC_API_BASE_URL = fixture.url;
   process.env.WCAGC_MCP_OAUTH_ISSUER = fixture.url;
   process.env.WCAGC_MCP_URL = "https://mcp.wcagc.com/mcp";
+  process.env.WCAGC_OPENAI_APPS_CHALLENGE = "test-openai-apps-challenge";
   process.env.WCAGC_MCP_PDF_FETCH_ALLOWED_HOSTS = "127.0.0.1";
   // A short TTL doesn't make tests faster (TTL only governs re-introspect frequency, not wall
   // clock), and too short a value leaves no slack for real request latency between this code's
@@ -60,6 +62,7 @@ export async function startHarness(): Promise<Harness> {
   return {
     mcpUrl: `http://127.0.0.1:${port}/mcp`,
     metadataUrl: `http://127.0.0.1:${port}/.well-known/oauth-protected-resource/mcp`,
+    openAiAppsChallengeUrl: `http://127.0.0.1:${port}/.well-known/openai-apps-challenge`,
     oauthToken,
     close: async () => {
       await new Promise<void>((resolve) => server.close(() => resolve()));

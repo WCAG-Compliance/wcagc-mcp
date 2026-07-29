@@ -34,6 +34,13 @@ test("RFC 9728 metadata advertises the managed authorization server without DCR"
   assert.deepEqual(metadata.scopes_supported, ["mcp:scan"]);
 });
 
+test("OpenAI Apps domain challenge returns the configured token verbatim", async () => {
+  const res = await fetch(harness.openAiAppsChallengeUrl);
+  assert.equal(res.status, 200);
+  assert.match(res.headers.get("content-type") ?? "", /^text\/plain/);
+  assert.equal(await res.text(), "test-openai-apps-challenge");
+});
+
 test("a valid managed OAuth JWT can initialize an MCP session", async () => {
   const client = await connectedClient(harness.mcpUrl, harness.oauthToken());
   await client.close();

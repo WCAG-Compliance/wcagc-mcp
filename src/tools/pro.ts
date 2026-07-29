@@ -3,6 +3,7 @@ import { z } from "zod";
 import { apiJson, McpApiError } from "../api-client.js";
 import { resolveBearer } from "../bearer.js";
 import { COVERAGE_DISCLAIMER } from "../disclaimer.js";
+import { OAUTH_TOOL_META } from "../tool-metadata.js";
 import { toolError } from "../tool-error.js";
 import {
   disclaimerShape,
@@ -313,13 +314,24 @@ const READ_ONLY = {
 } as const;
 
 /**
- * Queues real work that drives a browser against pages out on the internet, and spends quota
- * doing it. Nothing is ever deleted or overwritten — a scan only appends — so destructive stays
- * false, but the world it reaches into is open and the outcome is not repeatable.
+ * Queues private WCAGC work and spends quota. Nothing is deleted or overwritten and the tools do
+ * not publish or mutate public internet state, so both destructive and open-world stay false.
  */
-const QUEUES_WORK = {
+const QUEUES_PRIVATE_WORK = {
   readOnlyHint: false,
   destructiveHint: false,
+  idempotentHint: false,
+  openWorldHint: false,
+} as const;
+
+/**
+ * A saved journey can contain clicks or fills that submit a form or trigger another external,
+ * irreversible action. It therefore needs both warnings even though the steps are configured in
+ * WCAGC rather than accepted as raw arguments to this tool.
+ */
+const RUNS_EXTERNAL_JOURNEY = {
+  readOnlyHint: false,
+  destructiveHint: true,
   idempotentHint: false,
   openWorldHint: true,
 } as const;
@@ -343,6 +355,7 @@ export function registerProTools(server: McpServer): void {
         "every other Pro+ tool takes as siteHost. Pro+ (requires sites:read + API_ACCESS).",
       inputSchema: {},
       outputSchema: { sites: z.array(siteSchema) },
+      _meta: OAUTH_TOOL_META,
       annotations: { title: "List registered sites", ...READ_ONLY },
     },
     async (_args, extra) => {
@@ -372,7 +385,8 @@ export function registerProTools(server: McpServer): void {
         ),
       },
       outputSchema: { run: runSchema, ...disclaimerShape },
-      annotations: { title: "Start a full-site scan", ...QUEUES_WORK },
+      _meta: OAUTH_TOOL_META,
+      annotations: { title: "Start a full-site scan", ...QUEUES_PRIVATE_WORK },
     },
     async ({ siteHost }, extra) => {
       try {
@@ -403,6 +417,7 @@ export function registerProTools(server: McpServer): void {
         "get_scan instead.",
       inputSchema: { runId: z.string().uuid().describe("The id returned by scan_site.") },
       outputSchema: { run: runSchema, ...disclaimerShape },
+      _meta: OAUTH_TOOL_META,
       annotations: { title: "Get a full-site scan run by id", ...READ_ONLY },
     },
     async ({ runId }, extra) => {
@@ -429,6 +444,7 @@ export function registerProTools(server: McpServer): void {
         "scan_url, use get_findings instead.",
       inputSchema: { runId: z.string().uuid().describe("The id returned by scan_site.") },
       outputSchema: { violations: z.array(runViolationSchema) },
+      _meta: OAUTH_TOOL_META,
       annotations: { title: "Get a full-site scan run's findings", ...READ_ONLY },
     },
     async ({ runId }, extra) => {
@@ -457,6 +473,7 @@ export function registerProTools(server: McpServer): void {
         "the site's real component boundaries. Pro+.",
       inputSchema: { runId: z.string().uuid().describe("The id returned by scan_site.") },
       outputSchema: { rootCauses: rootCausesSchema },
+      _meta: OAUTH_TOOL_META,
       annotations: { title: "Get a scan run's root causes", ...READ_ONLY },
     },
     async ({ runId }, extra) => {
@@ -490,14 +507,16 @@ export function registerProTools(server: McpServer): void {
       description: "Replays a saved multi-step journey (e.g. \"add to cart -> checkout\") against " +
         "its registered site and checkpoints accessibility at each step. Pro+ (JOURNEYS; also " +
         "AUTHENTICATED_SCANS when the journey logs in). Steps and any login credential always come " +
-        "from the journey's own saved configuration — never accepted here. Queues the run and " +
-        "returns immediately with a runId — call get_journey_run to poll.",
+        "from the journey's own saved configuration — never accepted here. Saved click or fill " +
+        "steps can submit forms or trigger external actions, so run only a journey the user has " +
+        "reviewed. Queues the run and returns immediately with a runId — call get_journey_run to poll.",
       inputSchema: {
         siteHost: z.string().describe("The registered site's normalized host, as list_sites reports it."),
         journeyName: z.string().describe("The saved journey's name, as configured in the app."),
       },
       outputSchema: { run: journeyRunSchema, ...disclaimerShape },
-      annotations: { title: "Run a saved user journey", ...QUEUES_WORK },
+      _meta: OAUTH_TOOL_META,
+      annotations: { title: "Run a saved user journey", ...RUNS_EXTERNAL_JOURNEY },
     },
     async ({ siteHost, journeyName }, extra) => {
       try {
@@ -527,6 +546,7 @@ export function registerProTools(server: McpServer): void {
         "a failure reason if a step failed. Pro+.",
       inputSchema: { runId: z.string().uuid().describe("The id returned by run_journey.") },
       outputSchema: { run: journeyRunSchema, ...disclaimerShape },
+      _meta: OAUTH_TOOL_META,
       annotations: { title: "Get a journey run by id", ...READ_ONLY },
     },
     async ({ runId }, extra) => {
@@ -555,6 +575,7 @@ export function registerProTools(server: McpServer): void {
         limit: z.number().int().min(1).max(100).optional().describe("Most recent N runs (default 30, max 100)."),
       },
       outputSchema: { trend: trendSchema, ...disclaimerShape },
+      _meta: OAUTH_TOOL_META,
       annotations: { title: "Get a site's violation-count trend", ...READ_ONLY },
     },
     async ({ siteHost, limit }, extra) => {
@@ -585,6 +606,7 @@ export function registerProTools(server: McpServer): void {
         "the scope of any automated verification proof. Pro+ (REMEDIATION_TRACKING).",
       inputSchema: { siteHost: z.string().describe("The registered site's normalized host, as list_sites reports it.") },
       outputSchema: { fixes: z.array(fixSchema), ...disclaimerShape },
+      _meta: OAUTH_TOOL_META,
       annotations: { title: "List tracked fixes", ...READ_ONLY },
     },
     async ({ siteHost }, extra) => {
@@ -614,7 +636,8 @@ export function registerProTools(server: McpServer): void {
         "fix. This is not a full-site re-scan or a compliance guarantee. Pro+.",
       inputSchema: { remediationItemId: z.string().uuid().describe("A fix id returned by get_fixes.") },
       outputSchema: { verification: fixVerificationAcceptedSchema, pollWith: z.literal("get_fix_verification"), ...disclaimerShape },
-      annotations: { title: "Verify a tracked fix", ...QUEUES_WORK },
+      _meta: OAUTH_TOOL_META,
+      annotations: { title: "Verify a tracked fix", ...QUEUES_PRIVATE_WORK },
     },
     async ({ remediationItemId }, extra) => {
       try {
@@ -645,6 +668,7 @@ export function registerProTools(server: McpServer): void {
         "selected pages checked. Pro+.",
       inputSchema: { fixVerificationId: z.string().uuid().describe("The id returned by verify_fix.") },
       outputSchema: { verification: fixVerificationSchema, ...disclaimerShape },
+      _meta: OAUTH_TOOL_META,
       annotations: { title: "Get fix verification", ...READ_ONLY },
     },
     async ({ fixVerificationId }, extra) => {

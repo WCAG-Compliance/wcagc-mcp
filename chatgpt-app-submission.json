@@ -1,0 +1,272 @@
+{
+  "$schema": "https://developers.openai.com/apps-sdk/schemas/chatgpt-app-submission.v1.json",
+  "schema_version": 1,
+  "app_info": {
+    "display_name": "WCAG Compliance",
+    "subtitle": "Scan web accessibility",
+    "description": "WCAG Compliance scans public web pages and PDFs, runs full-site and saved-journey checks for registered sites, and retrieves findings, trends, root-cause groups, tracked fixes, and verification evidence. Results include an automation-coverage disclaimer and do not provide a compliance score or guarantee.",
+    "category": "DEVELOPER_TOOLS"
+  },
+  "tools": {
+    "scan_url": {
+      "annotations": {
+        "readOnlyHint": false,
+        "openWorldHint": false,
+        "destructiveHint": false
+      },
+      "justifications": {
+        "read_only_justification": "Queues a private WCAGC scan record and consumes the account's scan quota.",
+        "open_world_justification": "Fetches the requested public page for analysis but does not publish or modify public or third-party state.",
+        "destructive_justification": "Adds a scan record without deleting, overwriting, revoking, or irreversibly changing user data."
+      }
+    },
+    "get_scan": {
+      "annotations": {
+        "readOnlyHint": true,
+        "openWorldHint": false,
+        "destructiveHint": false
+      },
+      "justifications": {
+        "read_only_justification": "Retrieves one scan's status and results without creating or updating records.",
+        "open_world_justification": "Reads only the authenticated account's private WCAGC scan data.",
+        "destructive_justification": "Cannot delete, overwrite, revoke access, or perform irreversible actions."
+      }
+    },
+    "get_findings": {
+      "annotations": {
+        "readOnlyHint": true,
+        "openWorldHint": false,
+        "destructiveHint": false
+      },
+      "justifications": {
+        "read_only_justification": "Retrieves findings already recorded for one scan without changing them.",
+        "open_world_justification": "Reads only private findings from the authenticated WCAGC account.",
+        "destructive_justification": "Cannot delete, overwrite, revoke access, or perform irreversible actions."
+      }
+    },
+    "check_pdf": {
+      "annotations": {
+        "readOnlyHint": false,
+        "openWorldHint": false,
+        "destructiveHint": false
+      },
+      "justifications": {
+        "read_only_justification": "Downloads the requested PDF, queues a private WCAGC check, and consumes quota.",
+        "open_world_justification": "Reads a public PDF for analysis but does not publish or modify public or third-party state.",
+        "destructive_justification": "Adds a PDF check record without deleting, overwriting, revoking, or irreversibly changing user data."
+      }
+    },
+    "get_pdf_check": {
+      "annotations": {
+        "readOnlyHint": true,
+        "openWorldHint": false,
+        "destructiveHint": false
+      },
+      "justifications": {
+        "read_only_justification": "Retrieves one existing PDF check's status and summary without changing it.",
+        "open_world_justification": "Reads only private PDF-check data from the authenticated WCAGC account.",
+        "destructive_justification": "Cannot delete, overwrite, revoke access, or perform irreversible actions."
+      }
+    },
+    "list_sites": {
+      "annotations": {
+        "readOnlyHint": true,
+        "openWorldHint": false,
+        "destructiveHint": false
+      },
+      "justifications": {
+        "read_only_justification": "Lists registered sites in the authenticated organization without modifying them.",
+        "open_world_justification": "Reads only the organization's private WCAGC site registry.",
+        "destructive_justification": "Cannot delete, overwrite, revoke access, or perform irreversible actions."
+      }
+    },
+    "scan_site": {
+      "annotations": {
+        "readOnlyHint": false,
+        "openWorldHint": false,
+        "destructiveHint": false
+      },
+      "justifications": {
+        "read_only_justification": "Queues a private full-site scan run and consumes the authenticated account's quota.",
+        "open_world_justification": "Scans a site already registered to the user's WCAGC organization without publishing or modifying external state.",
+        "destructive_justification": "Adds scan results without deleting, overwriting, revoking, or irreversibly changing user data."
+      }
+    },
+    "get_run": {
+      "annotations": {
+        "readOnlyHint": true,
+        "openWorldHint": false,
+        "destructiveHint": false
+      },
+      "justifications": {
+        "read_only_justification": "Retrieves progress and results for an existing full-site run without changing it.",
+        "open_world_justification": "Reads only private run data from the authenticated WCAGC account.",
+        "destructive_justification": "Cannot delete, overwrite, revoke access, or perform irreversible actions."
+      }
+    },
+    "get_run_findings": {
+      "annotations": {
+        "readOnlyHint": true,
+        "openWorldHint": false,
+        "destructiveHint": false
+      },
+      "justifications": {
+        "read_only_justification": "Retrieves rule-deduplicated findings already recorded for a full-site run.",
+        "open_world_justification": "Reads only private findings from the authenticated WCAGC account.",
+        "destructive_justification": "Cannot delete, overwrite, revoke access, or perform irreversible actions."
+      }
+    },
+    "get_root_causes": {
+      "annotations": {
+        "readOnlyHint": true,
+        "openWorldHint": false,
+        "destructiveHint": false
+      },
+      "justifications": {
+        "read_only_justification": "Retrieves deterministic root-cause groups already computed for a scan run.",
+        "open_world_justification": "Reads only private analysis from the authenticated WCAGC account.",
+        "destructive_justification": "Cannot delete, overwrite, revoke access, or perform irreversible actions."
+      }
+    },
+    "run_journey": {
+      "annotations": {
+        "readOnlyHint": false,
+        "openWorldHint": true,
+        "destructiveHint": true
+      },
+      "justifications": {
+        "read_only_justification": "Replays saved browser steps, creates a private WCAGC journey run, and consumes quota.",
+        "open_world_justification": "Saved click or fill steps can submit forms or trigger actions on external systems.",
+        "destructive_justification": "A saved journey can perform an irreversible external submission or transaction, so users are instructed to run only reviewed journeys."
+      }
+    },
+    "get_journey_run": {
+      "annotations": {
+        "readOnlyHint": true,
+        "openWorldHint": false,
+        "destructiveHint": false
+      },
+      "justifications": {
+        "read_only_justification": "Retrieves an existing journey run's checkpoints and status without changing it.",
+        "open_world_justification": "Reads only private journey-run data from the authenticated WCAGC account.",
+        "destructive_justification": "Cannot delete, overwrite, revoke access, or perform irreversible actions."
+      }
+    },
+    "get_trends": {
+      "annotations": {
+        "readOnlyHint": true,
+        "openWorldHint": false,
+        "destructiveHint": false
+      },
+      "justifications": {
+        "read_only_justification": "Retrieves historical violation counts for a registered site without changing records.",
+        "open_world_justification": "Reads only private trend history from the authenticated WCAGC account.",
+        "destructive_justification": "Cannot delete, overwrite, revoke access, or perform irreversible actions."
+      }
+    },
+    "get_fixes": {
+      "annotations": {
+        "readOnlyHint": true,
+        "openWorldHint": false,
+        "destructiveHint": false
+      },
+      "justifications": {
+        "read_only_justification": "Lists tracked remediation items and their evidence without changing them.",
+        "open_world_justification": "Reads only private remediation data from the authenticated WCAGC account.",
+        "destructive_justification": "Cannot delete, overwrite, revoke access, or perform irreversible actions."
+      }
+    },
+    "verify_fix": {
+      "annotations": {
+        "readOnlyHint": false,
+        "openWorldHint": false,
+        "destructiveHint": false
+      },
+      "justifications": {
+        "read_only_justification": "Queues a private targeted re-check and updates the tracked remediation item's internal verification state.",
+        "open_world_justification": "Checks pages associated with the user's registered site without publishing or modifying external state.",
+        "destructive_justification": "Creates verification evidence without deleting records, revoking access, or performing irreversible actions."
+      }
+    },
+    "get_fix_verification": {
+      "annotations": {
+        "readOnlyHint": true,
+        "openWorldHint": false,
+        "destructiveHint": false
+      },
+      "justifications": {
+        "read_only_justification": "Retrieves an existing targeted verification's status and selected-page evidence.",
+        "open_world_justification": "Reads only private verification data from the authenticated WCAGC account.",
+        "destructive_justification": "Cannot delete, overwrite, revoke access, or perform irreversible actions."
+      }
+    }
+  },
+  "test_cases": [
+    {
+      "description": "Run and summarize a single-page accessibility scan.",
+      "user_prompt": "Scan https://example.com for accessibility problems and summarize the result without giving me a compliance score.",
+      "file_attachment_urls": null,
+      "tools_triggered": "scan_url",
+      "expected_output": "Queues the scan, reports its identifier and current status, and includes the automation-coverage disclaimer without a score, grade, percentage, or compliance verdict.",
+      "expected_output_url": null
+    },
+    {
+      "description": "List the organization's registered sites.",
+      "user_prompt": "Which sites are registered in my WCAG Compliance account?",
+      "file_attachment_urls": null,
+      "tools_triggered": "list_sites",
+      "expected_output": "Returns only sites registered to the authenticated organization, including the normalized host needed by other site tools.",
+      "expected_output_url": null
+    },
+    {
+      "description": "Start a full-site scan for a registered host.",
+      "user_prompt": "Run a full-site accessibility scan of the registered demo site in my account.",
+      "file_attachment_urls": null,
+      "tools_triggered": "scan_site",
+      "expected_output": "Queues a full-site run for the registered host, returns its polling identifier and status, and includes the automation-coverage disclaimer.",
+      "expected_output_url": null
+    },
+    {
+      "description": "Retrieve actionable findings from a completed full-site run.",
+      "user_prompt": "Show the findings from my latest completed full-site run, grouped by severity, with WCAG criteria and help links.",
+      "file_attachment_urls": null,
+      "tools_triggered": "get_run_findings",
+      "expected_output": "Returns rule-deduplicated findings from the authenticated account with severity, WCAG success criteria, affected URL or selector where available, and help links.",
+      "expected_output_url": null
+    },
+    {
+      "description": "Compare violation counts across completed site scans.",
+      "user_prompt": "Has accessibility on my registered demo site improved over its recent full-site scans?",
+      "file_attachment_urls": null,
+      "tools_triggered": "get_trends",
+      "expected_output": "Returns chronological per-run violation counts and added or resolved markers, describes the direction of change, and does not convert counts into a compliance score.",
+      "expected_output_url": null
+    }
+  ],
+  "negative_test_cases": [
+    {
+      "description": "Do not claim to automatically fix source code.",
+      "user_prompt": "Rewrite my application and automatically deploy fixes for every accessibility issue.",
+      "file_attachment_urls": null,
+      "tools_triggered": null,
+      "expected_output": "The plugin should not be invoked because it does not edit source code, create patches, or deploy automatic fixes.",
+      "expected_output_url": null
+    },
+    {
+      "description": "Do not provide an accessibility certification or guarantee.",
+      "user_prompt": "Certify that my website is fully WCAG compliant and give me a legal guarantee.",
+      "file_attachment_urls": null,
+      "tools_triggered": null,
+      "expected_output": "The plugin should not be invoked to certify compliance because automated checks cover only part of accessibility requirements and provide no legal guarantee.",
+      "expected_output_url": null
+    },
+    {
+      "description": "Do not create or verify a new site registration.",
+      "user_prompt": "Create a new site in my WCAG Compliance account and verify domain ownership for me.",
+      "file_attachment_urls": null,
+      "tools_triggered": null,
+      "expected_output": "The plugin should not be invoked because site creation and ownership verification are performed in the WCAG Compliance web application, not by its MCP tools.",
+      "expected_output_url": null
+    }
+  ]
+}

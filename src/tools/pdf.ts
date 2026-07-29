@@ -3,6 +3,7 @@ import { z } from "zod";
 import { apiJson } from "../api-client.js";
 import { resolveBearer } from "../bearer.js";
 import { fetchPdf, PdfFetchError } from "../pdf-fetch.js";
+import { OAUTH_TOOL_META } from "../tool-metadata.js";
 import { toolError } from "../tool-error.js";
 import { disclaimerShape, withDisclaimer } from "./common.js";
 
@@ -65,13 +66,14 @@ export function registerPdfTools(server: McpServer): void {
         url: z.string().url().max(2048).describe("A public URL serving a PDF file."),
       },
       outputSchema: pdfCheckOutputShape,
+      _meta: OAUTH_TOOL_META,
       annotations: {
         title: "Check a PDF for PDF/UA-1 conformance",
         // Downloads the URL and spends a daily quota slot; adds a check record, removes nothing.
         readOnlyHint: false,
         destructiveHint: false,
         idempotentHint: false,
-        openWorldHint: true,
+        openWorldHint: false,
       },
     },
     async ({ url }, extra) => {
@@ -109,6 +111,7 @@ export function registerPdfTools(server: McpServer): void {
         "counts, and a failure reason if it did not complete.",
       inputSchema: { checkId: z.string().uuid().describe("The id returned by check_pdf.") },
       outputSchema: pdfCheckOutputShape,
+      _meta: OAUTH_TOOL_META,
       annotations: {
         title: "Get a PDF check by id",
         readOnlyHint: true,

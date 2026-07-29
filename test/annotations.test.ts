@@ -15,6 +15,8 @@ after(async () => {
 
 /** The tools that queue work or spend quota. Everything else must declare itself read-only. */
 const WRITES = new Set(["scan_url", "scan_site", "check_pdf", "run_journey", "verify_fix"]);
+const OPEN_WORLD = new Set(["run_journey"]);
+const DESTRUCTIVE = new Set(["run_journey"]);
 
 /**
  * Both directories gate listing on this: every tool needs a title and a truthful read-only or
@@ -33,13 +35,12 @@ test("every tool declares a title and honest annotations", async () => {
       assert.ok(tool.title, `${tool.name} has no title`);
       assert.ok(annotations.title, `${tool.name} has no annotations.title`);
       assert.equal(annotations.readOnlyHint, !WRITES.has(tool.name), `${tool.name} readOnlyHint`);
-      // Nothing this server exposes deletes or overwrites anything: a scan only ever appends.
-      assert.equal(annotations.destructiveHint, false, `${tool.name} destructiveHint`);
-      // Only the tools that go out and load a page or a file reach an open world. The readers
-      // answer from the account's own records, which is a closed, enumerable domain — claiming
-      // otherwise on every tool was less informative, not more cautious.
-      assert.equal(annotations.openWorldHint, WRITES.has(tool.name), `${tool.name} openWorldHint`);
+      assert.equal(annotations.destructiveHint, DESTRUCTIVE.has(tool.name), `${tool.name} destructiveHint`);
+      assert.equal(annotations.openWorldHint, OPEN_WORLD.has(tool.name), `${tool.name} openWorldHint`);
       assert.equal(typeof annotations.idempotentHint, "boolean", `${tool.name} idempotentHint`);
+      assert.deepEqual(tool._meta?.securitySchemes, [
+        { type: "oauth2", scopes: ["mcp:scan"] },
+      ], `${tool.name} securitySchemes`);
     }
   } finally {
     await client.close();

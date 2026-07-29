@@ -35,6 +35,13 @@ export const app = express();
 app.get("/health", (_req, res) => {
   res.status(200).json({ status: "ok", version: VERSION });
 });
+app.get("/.well-known/openai-apps-challenge", (_req, res) => {
+  if (!config.openAiAppsChallenge) {
+    res.sendStatus(404);
+    return;
+  }
+  res.status(200).type("text/plain").send(config.openAiAppsChallenge);
+});
 const issuer = config.oauthIssuer.replace(/\/+$/, "");
 const oauthMetadata: OAuthMetadata = {
   issuer,

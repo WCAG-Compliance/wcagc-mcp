@@ -86,10 +86,11 @@ roughly 30–57% of accessibility issues, and the remainder needs manual review.
 | `PORT` | hosted | Port to listen on (default `8080`). |
 | `WCAGC_MCP_ALLOWED_HOSTS` | hosted | Comma-separated Host-header allowlist (DNS-rebinding protection when bound to `0.0.0.0`). |
 | `WCAGC_MCP_INTROSPECT_TTL_SECONDS` | hosted | How long a verified bearer is cached before re-checking with the API (default `60`). |
-| `WCAGC_OAUTH_ISSUER` | hosted | Expected OAuth issuer. |
-| `WCAGC_OAUTH_JWKS_URL` | hosted | Authorization Server public JWKS URL. |
-| `WCAGC_MCP_SERVER_URL` | hosted | Canonical RFC 9728 protected-resource URL. |
-| `WCAGC_OAUTH_JWKS_TTL_SECONDS` | hosted | JWKS cache TTL; an unknown `kid` triggers an immediate refetch. |
+| `WCAGC_MCP_OAUTH_ISSUER` | hosted | Expected OAuth issuer (defaults to `WCAGC_API_BASE_URL`). |
+| `WCAGC_MCP_OAUTH_JWKS_URL` | hosted | Authorization Server public JWKS URL. |
+| `WCAGC_MCP_URL` | hosted | Canonical RFC 9728 protected-resource URL (defaults to `https://mcp.wcagc.com/mcp`). |
+| `WCAGC_MCP_JWKS_TTL_SECONDS` | hosted | JWKS cache TTL; an unknown `kid` triggers an immediate refetch. |
+| `WCAGC_OPENAI_APPS_CHALLENGE` | hosted | OpenAI Plugins Directory domain-verification token; keep it in the deployment secret store, never in source. |
 
 ## Development
 

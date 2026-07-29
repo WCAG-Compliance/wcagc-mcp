@@ -2,6 +2,7 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { McpApiError, apiJson } from "../api-client.js";
 import { resolveBearer } from "../bearer.js";
+import { OAUTH_TOOL_META } from "../tool-metadata.js";
 import { toolError } from "../tool-error.js";
 import {
   disclaimerShape,
@@ -147,6 +148,7 @@ export function registerScanTools(server: McpServer): void {
         url: z.string().url().max(2048).describe("The http(s) URL to scan."),
       },
       outputSchema: scanOutputShape,
+      _meta: OAUTH_TOOL_META,
       annotations: {
         title: "Scan a URL",
         // Queues real work and spends the account's daily scan quota, so not read-only — but it
@@ -154,7 +156,7 @@ export function registerScanTools(server: McpServer): void {
         readOnlyHint: false,
         destructiveHint: false,
         idempotentHint: false,
-        openWorldHint: true,
+        openWorldHint: false,
       },
     },
     async ({ url }, extra) => {
@@ -223,6 +225,7 @@ export function registerScanTools(server: McpServer): void {
         "For a full-site run from scan_site, use get_run instead.",
       inputSchema: { scanId: z.string().uuid().describe("The id returned by scan_url.") },
       outputSchema: scanOutputShape,
+      _meta: OAUTH_TOOL_META,
       annotations: {
         title: "Get a scan by id",
         readOnlyHint: true,
@@ -268,6 +271,7 @@ export function registerScanTools(server: McpServer): void {
         "For a full-site run from scan_site, use get_run_findings instead.",
       inputSchema: { scanId: z.string().uuid().describe("The id returned by scan_url.") },
       outputSchema: findingsOutputShape,
+      _meta: OAUTH_TOOL_META,
       annotations: {
         title: "Get a scan's findings",
         readOnlyHint: true,

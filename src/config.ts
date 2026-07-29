@@ -42,6 +42,9 @@ export const config = {
   oauthIssuer,
   oauthJwksUrl: process.env.WCAGC_MCP_OAUTH_JWKS_URL ?? `${oauthIssuer}/oauth2/jwks`,
   mcpServerUrl,
+  // OpenAI supplies this token during Plugins Directory domain verification. It stays in the
+  // deployment secret store; the hosted server exposes it verbatim only on the well-known path.
+  openAiAppsChallenge: process.env.WCAGC_OPENAI_APPS_CHALLENGE,
   jwksCacheTtlSeconds: num(process.env.WCAGC_MCP_JWKS_TTL_SECONDS, 300),
 
   // ── check_pdf url fetch (wcagc-api only accepts multipart bytes — see src/pdf-fetch.ts) ──
