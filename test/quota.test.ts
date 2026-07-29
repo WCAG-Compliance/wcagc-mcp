@@ -18,12 +18,14 @@ test("scan_url — an exhausted FREE quota comes back as isError with code + tar
   try {
     const result = await client.callTool({ name: "scan_url", arguments: { url: "https://example.com" } });
     assert.equal(result.isError, true);
-    const structured = result.structuredContent as { code: string; targetPlan: string; upgradeUrl: string };
+    const structured = result.structuredContent as { code: string; targetPlan: string; upgradeUrl?: string };
     assert.equal(structured.code, "PLAN_LIMIT_EXCEEDED");
     assert.equal(structured.targetPlan, "STARTER");
-    assert.ok(structured.upgradeUrl.includes("STARTER"));
+    assert.equal(structured.upgradeUrl, undefined);
     const content = result.content as Array<{ type: string; text: string }>;
     assert.ok(content[0].text.includes("PLAN_LIMIT_EXCEEDED"));
+    assert.ok(content[0].text.includes("requires the STARTER plan"));
+    assert.equal(content[0].text.includes("https://"), false);
   } finally {
     await client.close();
   }

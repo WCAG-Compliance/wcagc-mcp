@@ -19,11 +19,7 @@ export function toolError(err: unknown): ToolErrorResult {
     let hint = "";
     if (err.targetPlan) {
       structured.targetPlan = err.targetPlan;
-      const upgradeUrl = err.upgradeUrl();
-      if (upgradeUrl) {
-        structured.upgradeUrl = upgradeUrl;
-        hint = ` Upgrade to ${err.targetPlan}: ${upgradeUrl}`;
-      }
+      hint = ` This feature requires the ${err.targetPlan} plan.`;
     }
     if (err.limit !== undefined) structured.limit = err.limit;
     // "Register the site first" is unactionable on its own — the caller has no way to see what IS

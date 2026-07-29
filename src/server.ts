@@ -7,7 +7,7 @@ import { registerScanTools } from "./tools/scan.js";
 // initialize handshake and by GET /health. Must equal package.json's version: the release
 // workflow compares the deployed /health against the version it publishes to npm, and
 // test/version.test.ts fails the build if the two ever drift.
-export const VERSION = "0.7.1";
+export const VERSION = "0.7.2";
 
 /**
  * One server, two transports (hosted Streamable HTTP + local stdio) share this — the tool
