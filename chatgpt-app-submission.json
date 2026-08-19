@@ -203,43 +203,43 @@
   },
   "test_cases": [
     {
-      "description": "Run and summarize a single-page accessibility scan.",
-      "user_prompt": "Scan https://example.com for accessibility problems and summarize the result without giving me a compliance score.",
+      "description": "Run, poll, and summarize a single-page accessibility scan.",
+      "user_prompt": "Scan https://example.com for accessibility problems. Poll until the scan finishes, then summarize its findings without giving me a compliance score.",
       "file_attachment_urls": null,
-      "tools_triggered": "scan_url",
-      "expected_output": "Queues the scan, reports its identifier and current status, and includes the automation-coverage disclaimer without a score, grade, percentage, or compliance verdict.",
+      "tools_triggered": "scan_url, get_scan, get_findings",
+      "expected_output": "Creates a scan and returns a scanId, polls it to a terminal status, then returns finding records with rule id, severity, help URL, and selector where available. Scan results include the automation-coverage limitation and no score, grade, percentage, certification, or compliance verdict.",
       "expected_output_url": null
     },
     {
-      "description": "List the organization's registered sites.",
-      "user_prompt": "Which sites are registered in my WCAG Compliance account?",
+      "description": "List the registered demo site and its exact normalized host.",
+      "user_prompt": "List the sites registered in my WCAG Compliance test account and report the exact normalized host for Wcagc.",
       "file_attachment_urls": null,
       "tools_triggered": "list_sites",
-      "expected_output": "Returns only sites registered to the authenticated organization, including the normalized host needed by other site tools.",
+      "expected_output": "Returns the verified demo site named Wcagc and its normalized host wcagc.com from the authenticated OpenAI Test organization.",
       "expected_output_url": null
     },
     {
-      "description": "Start a full-site scan for a registered host.",
-      "user_prompt": "Run a full-site accessibility scan of the registered demo site in my account.",
+      "description": "Start and poll a full-site scan for the registered demo site.",
+      "user_prompt": "Call list_sites, start a full-site accessibility scan for the registered host wcagc.com, and poll it until it reaches a terminal status.",
       "file_attachment_urls": null,
-      "tools_triggered": "scan_site",
-      "expected_output": "Queues a full-site run for the registered host, returns its polling identifier and status, and includes the automation-coverage disclaimer.",
+      "tools_triggered": "list_sites, scan_site, get_run",
+      "expected_output": "Queues a full-site run for wcagc.com, returns a runId and progress/status, then reports final severity counts or a clear failure reason. Results include the automation-coverage limitation and no compliance score or guarantee.",
       "expected_output_url": null
     },
     {
-      "description": "Retrieve actionable findings from a completed full-site run.",
-      "user_prompt": "Show the findings from my latest completed full-site run, grouped by severity, with WCAG criteria and help links.",
+      "description": "Retrieve findings and root-cause groups from a completed full-site run.",
+      "user_prompt": "For completed run 01a01be6-4989-74e8-8d0f-af26dc5a7d5a, return its findings grouped by severity and its deterministic root-cause groups. Include WCAG criteria and help links, and explain the automation-coverage limitation.",
       "file_attachment_urls": null,
-      "tools_triggered": "get_run_findings",
-      "expected_output": "Returns rule-deduplicated findings from the authenticated account with severity, WCAG success criteria, affected URL or selector where available, and help links.",
+      "tools_triggered": "get_run, get_run_findings, get_root_causes",
+      "expected_output": "Confirms the run is complete, returns rule-deduplicated findings with severity, WCAG success criteria, affected URL or selector where available, and help links, then returns deterministic recurring-pattern groups with factual page and finding counts.",
       "expected_output_url": null
     },
     {
-      "description": "Compare violation counts across completed site scans.",
-      "user_prompt": "Has accessibility on my registered demo site improved over its recent full-site scans?",
+      "description": "Review violation-count trends for the registered demo site.",
+      "user_prompt": "Call list_sites and show the available accessibility finding-count history for registered host wcagc.com. Report each completed run and any added or resolved counts that are available. Do not produce a compliance score.",
       "file_attachment_urls": null,
-      "tools_triggered": "get_trends",
-      "expected_output": "Returns chronological per-run violation counts and added or resolved markers, describes the direction of change, and does not convert counts into a compliance score.",
+      "tools_triggered": "list_sites, get_trends",
+      "expected_output": "Returns chronological completed-run point(s) for wcagc.com with severity counts and added/resolved markers where available. If only the baseline run exists, it clearly says that no comparison is available yet. It includes the automation-coverage limitation and no score or compliance verdict.",
       "expected_output_url": null
     }
   ],
