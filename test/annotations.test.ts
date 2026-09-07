@@ -15,7 +15,7 @@ after(async () => {
 
 /** The tools that queue work or spend quota. Everything else must declare itself read-only. */
 const WRITES = new Set(["scan_url", "scan_site", "check_pdf", "run_journey", "verify_fix"]);
-const OPEN_WORLD = new Set(["run_journey"]);
+const OPEN_WORLD = new Set(["scan_url", "scan_site", "check_pdf", "run_journey", "verify_fix"]);
 const DESTRUCTIVE = new Set(["run_journey"]);
 
 /**

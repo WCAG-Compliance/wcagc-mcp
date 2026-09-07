@@ -73,7 +73,8 @@ export function registerPdfTools(server: McpServer): void {
         readOnlyHint: false,
         destructiveHint: false,
         idempotentHint: false,
-        openWorldHint: false,
+        // Downloads an arbitrary public PDF selected by the user, so its interaction domain is open.
+        openWorldHint: true,
       },
     },
     async ({ url }, extra) => {

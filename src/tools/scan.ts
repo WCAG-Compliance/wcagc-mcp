@@ -156,7 +156,8 @@ export function registerScanTools(server: McpServer): void {
         readOnlyHint: false,
         destructiveHint: false,
         idempotentHint: false,
-        openWorldHint: false,
+        // Fetches an arbitrary public URL selected by the user, so its interaction domain is open.
+        openWorldHint: true,
       },
     },
     async ({ url }, extra) => {

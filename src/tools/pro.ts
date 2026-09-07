@@ -314,14 +314,14 @@ const READ_ONLY = {
 } as const;
 
 /**
- * Queues private WCAGC work and spends quota. Nothing is deleted or overwritten and the tools do
- * not publish or mutate public internet state, so both destructive and open-world stay false.
+ * Queues private WCAGC work and spends quota. Nothing is deleted or overwritten, but the scan or
+ * verification reads pages on a registered external site, so the interaction domain is open.
  */
 const QUEUES_PRIVATE_WORK = {
   readOnlyHint: false,
   destructiveHint: false,
   idempotentHint: false,
-  openWorldHint: false,
+  openWorldHint: true,
 } as const;
 
 /**

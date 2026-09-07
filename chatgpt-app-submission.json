@@ -11,12 +11,12 @@
     "scan_url": {
       "annotations": {
         "readOnlyHint": false,
-        "openWorldHint": false,
+        "openWorldHint": true,
         "destructiveHint": false
       },
       "justifications": {
         "read_only_justification": "Queues a private WCAGC scan record and consumes the account's scan quota.",
-        "open_world_justification": "Fetches the requested public page for analysis but does not publish or modify public or third-party state.",
+        "open_world_justification": "Fetches an arbitrary public page selected by the user, so it may interact with external internet hosts; it never publishes or modifies them.",
         "destructive_justification": "Adds a scan record without deleting, overwriting, revoking, or irreversibly changing user data."
       }
     },
@@ -47,12 +47,12 @@
     "check_pdf": {
       "annotations": {
         "readOnlyHint": false,
-        "openWorldHint": false,
+        "openWorldHint": true,
         "destructiveHint": false
       },
       "justifications": {
         "read_only_justification": "Downloads the requested PDF, queues a private WCAGC check, and consumes quota.",
-        "open_world_justification": "Reads a public PDF for analysis but does not publish or modify public or third-party state.",
+        "open_world_justification": "Downloads an arbitrary public PDF selected by the user, so it may interact with external internet hosts; it never publishes or modifies them.",
         "destructive_justification": "Adds a PDF check record without deleting, overwriting, revoking, or irreversibly changing user data."
       }
     },
@@ -83,12 +83,12 @@
     "scan_site": {
       "annotations": {
         "readOnlyHint": false,
-        "openWorldHint": false,
+        "openWorldHint": true,
         "destructiveHint": false
       },
       "justifications": {
         "read_only_justification": "Queues a private full-site scan run and consumes the authenticated account's quota.",
-        "open_world_justification": "Scans a site already registered to the user's WCAGC organization without publishing or modifying external state.",
+        "open_world_justification": "Crawls pages on a registered external site, so it interacts with an open-world host; it never publishes or modifies that site.",
         "destructive_justification": "Adds scan results without deleting, overwriting, revoking, or irreversibly changing user data."
       }
     },
@@ -179,12 +179,12 @@
     "verify_fix": {
       "annotations": {
         "readOnlyHint": false,
-        "openWorldHint": false,
+        "openWorldHint": true,
         "destructiveHint": false
       },
       "justifications": {
         "read_only_justification": "Queues a private targeted re-check and updates the tracked remediation item's internal verification state.",
-        "open_world_justification": "Checks pages associated with the user's registered site without publishing or modifying external state.",
+        "open_world_justification": "Checks pages on the user's registered external site, so it interacts with an open-world host; it never publishes or modifies that site.",
         "destructive_justification": "Creates verification evidence without deleting records, revoking access, or performing irreversible actions."
       }
     },
@@ -203,11 +203,11 @@
   },
   "test_cases": [
     {
-      "description": "Run, poll, and summarize a single-page accessibility scan.",
-      "user_prompt": "Scan https://example.com for accessibility problems. Poll until the scan finishes, then summarize its findings without giving me a compliance score.",
+      "description": "Start a single-page accessibility scan and return its accepted receipt.",
+      "user_prompt": "Start an accessibility scan for https://example.com. Report the accepted scan receipt and how I can poll it, but do not wait for the scan to finish.",
       "file_attachment_urls": null,
-      "tools_triggered": "scan_url, get_scan, get_findings",
-      "expected_output": "Creates a scan and returns a scanId, polls it to a terminal status, then returns finding records with rule id, severity, help URL, and selector where available. Scan results include the automation-coverage limitation and no score, grade, percentage, certification, or compliance verdict.",
+      "tools_triggered": "scan_url",
+      "expected_output": "Returns a newly accepted scan with a UUID scanId, URL https://example.com, status QUEUED or RUNNING, recordedAgainstSite false, and pollWith get_scan. It includes the automation-coverage limitation and does not invent findings, a score, certification, or compliance verdict before the scan finishes.",
       "expected_output_url": null
     },
     {
@@ -219,27 +219,27 @@
       "expected_output_url": null
     },
     {
-      "description": "Start and poll a full-site scan for the registered demo site.",
-      "user_prompt": "Call list_sites, start a full-site accessibility scan for the registered host wcagc.com, and poll it until it reaches a terminal status.",
-      "file_attachment_urls": null,
-      "tools_triggered": "list_sites, scan_site, get_run",
-      "expected_output": "Queues a full-site run for wcagc.com, returns a runId and progress/status, then reports final severity counts or a clear failure reason. Results include the automation-coverage limitation and no compliance score or guarantee.",
-      "expected_output_url": null
-    },
-    {
-      "description": "Retrieve findings and root-cause groups from a completed full-site run.",
-      "user_prompt": "For completed run 01a01be6-4989-74e8-8d0f-af26dc5a7d5a, return its findings grouped by severity and its deterministic root-cause groups. Include WCAG criteria and help links, and explain the automation-coverage limitation.",
-      "file_attachment_urls": null,
-      "tools_triggered": "get_run, get_run_findings, get_root_causes",
-      "expected_output": "Confirms the run is complete, returns rule-deduplicated findings with severity, WCAG success criteria, affected URL or selector where available, and help links, then returns deterministic recurring-pattern groups with factual page and finding counts.",
-      "expected_output_url": null
-    },
-    {
-      "description": "Review violation-count trends for the registered demo site.",
-      "user_prompt": "Call list_sites and show the available accessibility finding-count history for registered host wcagc.com. Report each completed run and any added or resolved counts that are available. Do not produce a compliance score.",
+      "description": "Read the latest completed full-site trend point for the registered demo site.",
+      "user_prompt": "Call list_sites, then show only the most recent completed accessibility trend point for the registered host wcagc.com. Do not start a new scan and do not produce a compliance score.",
       "file_attachment_urls": null,
       "tools_triggered": "list_sites, get_trends",
-      "expected_output": "Returns chronological completed-run point(s) for wcagc.com with severity counts and added/resolved markers where available. If only the baseline run exists, it clearly says that no comparison is available yet. It includes the automation-coverage limitation and no score or compliance verdict.",
+      "expected_output": "Resolves wcagc.com from the authenticated site's exact normalized host and returns the newest completed trend point, including scanRunId, finishedAt, pagesScanned, totalViolations, bySeverity, and added/resolved counts when present. It includes the automation-coverage limitation and no score or compliance verdict.",
+      "expected_output_url": null
+    },
+    {
+      "description": "Retrieve a completed run without relying on a hard-coded run id.",
+      "user_prompt": "Call list_sites and get_trends for wcagc.com, take the scanRunId from the most recent completed trend point, then get that full-site run's status and counts. Do not start a new scan.",
+      "file_attachment_urls": null,
+      "tools_triggered": "list_sites, get_trends, get_run",
+      "expected_output": "Uses a scanRunId returned in the same conversation rather than a pre-supplied fixture id, then returns that run with terminal status, page progress, total violations, severity counts, and a null failure reason for a successful run. It includes the automation-coverage limitation and no compliance score or guarantee.",
+      "expected_output_url": null
+    },
+    {
+      "description": "Retrieve findings and root-cause groups from the latest completed run.",
+      "user_prompt": "Call list_sites and get_trends for wcagc.com, take the scanRunId from the most recent completed trend point, then return that run's findings and deterministic root-cause groups. Include WCAG criteria and help links where available. Do not start a new scan.",
+      "file_attachment_urls": null,
+      "tools_triggered": "list_sites, get_trends, get_run_findings, get_root_causes",
+      "expected_output": "Uses a scanRunId returned in the same conversation, returns rule-deduplicated findings with impact, WCAG success criteria, affected URL or selector where available, and help links, then returns deterministic recurring-pattern groups with factual page and finding counts. It explains the automation-coverage limitation and does not provide a compliance verdict.",
       "expected_output_url": null
     }
   ],
