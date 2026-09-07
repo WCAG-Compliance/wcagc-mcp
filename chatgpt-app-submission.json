@@ -204,7 +204,7 @@
   "test_cases": [
     {
       "description": "Start a single-page accessibility scan and return its accepted receipt.",
-      "user_prompt": "Start an accessibility scan for https://example.com. Report the accepted scan receipt and how I can poll it, but do not wait for the scan to finish.",
+      "user_prompt": "Start an accessibility scan for https://example.com. Report the accepted receipt fields scanId, url, status, recordedAgainstSite, and pollWith, but do not wait for the scan to finish.",
       "file_attachment_urls": null,
       "tools_triggered": "scan_url",
       "expected_output": "Returns a newly accepted scan with a UUID scanId, URL https://example.com, status QUEUED or RUNNING, recordedAgainstSite false, and pollWith get_scan. It includes the automation-coverage limitation and does not invent findings, a score, certification, or compliance verdict before the scan finishes.",
@@ -228,7 +228,7 @@
     },
     {
       "description": "Retrieve a completed run without relying on a hard-coded run id.",
-      "user_prompt": "Call list_sites and get_trends for wcagc.com, take the scanRunId from the most recent completed trend point, then get that full-site run's status and counts. Do not start a new scan.",
+      "user_prompt": "Call list_sites and get_trends for wcagc.com, take the scanRunId from the most recent completed trend point, then get that full-site run's status, page progress, violation counts by severity, and failure reason (including null). Do not start a new scan.",
       "file_attachment_urls": null,
       "tools_triggered": "list_sites, get_trends, get_run",
       "expected_output": "Uses a scanRunId returned in the same conversation rather than a pre-supplied fixture id, then returns that run with terminal status, page progress, total violations, severity counts, and a null failure reason for a successful run. It includes the automation-coverage limitation and no compliance score or guarantee.",
@@ -236,10 +236,10 @@
     },
     {
       "description": "Retrieve findings and root-cause groups from the latest completed run.",
-      "user_prompt": "Call list_sites and get_trends for wcagc.com, take the scanRunId from the most recent completed trend point, then return that run's findings and deterministic root-cause groups. Include WCAG criteria and help links where available. Do not start a new scan.",
+      "user_prompt": "Call list_sites and get_trends for wcagc.com, take the scanRunId from the most recent completed trend point, then return that run's findings and deterministic root-cause groups. For each finding, include impact, WCAG criteria, and affected URL or selector when available. Do not start a new scan.",
       "file_attachment_urls": null,
       "tools_triggered": "list_sites, get_trends, get_run_findings, get_root_causes",
-      "expected_output": "Uses a scanRunId returned in the same conversation, returns rule-deduplicated findings with impact, WCAG success criteria, affected URL or selector where available, and help links, then returns deterministic recurring-pattern groups with factual page and finding counts. It explains the automation-coverage limitation and does not provide a compliance verdict.",
+      "expected_output": "Uses a scanRunId returned in the same conversation, returns rule-deduplicated findings with impact, WCAG success criteria, and affected URL or selector where available, then returns deterministic recurring-pattern groups with factual page and finding counts. It explains the automation-coverage limitation and does not provide a compliance verdict.",
       "expected_output_url": null
     }
   ],
