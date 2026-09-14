@@ -29,6 +29,43 @@ mcpApp.use(express.json());
 // exempt while /mcp keeps full protection. Exempting it is safe: it returns a fixed status and
 // no request-specific or sensitive data, so reaching it via rebinding reveals nothing.
 export const app = express();
+
+// Response headers. This server answers JSON and nothing else — no HTML, no framing, no
+// subresources — so the strictest CSP is also the correct one, unlike the API host which has to
+// keep Swagger UI working. Written out rather than pulled from helmet: six headers on a JSON-only
+// service do not justify another dependency in a tree that a weekly Snyk gate has to clear.
+//
+// HSTS is emitted unconditionally for the same reason as on the API: Fly terminates TLS and
+// forwards cleartext, so any check on req.secure would suppress the header exactly where it is
+// needed. Fly is configured with force_https, so there is no plain-HTTP listener to mislead.
+app.use((_req, res, next) => {
+  res.setHeader("Strict-Transport-Security", "max-age=31536000; includeSubDomains");
+  res.setHeader("X-Content-Type-Options", "nosniff");
+  res.setHeader("X-Frame-Options", "DENY");
+  res.setHeader("Content-Security-Policy", "default-src 'none'; frame-ancestors 'none'");
+  res.setHeader("Referrer-Policy", "no-referrer");
+  res.setHeader("Permissions-Policy", "camera=(), microphone=(), geolocation=()");
+  next();
+});
+
+// RFC 9116 puts security.txt at the root of every host a researcher might probe, not just the
+// apex. Without it a scan of mcp.wcagc.com reports "no disclosure contact" and the report goes
+// wherever the reporter guesses.
+app.get("/.well-known/security.txt", (_req, res) => {
+  res
+    .status(200)
+    .type("text/plain")
+    .send(
+      [
+        "Contact: mailto:security@wcagc.com",
+        "Preferred-Languages: en",
+        "Canonical: https://wcagc.com/.well-known/security.txt",
+        "Policy: https://wcagc.com/security",
+        "Expires: 2027-07-23T00:00:00.000Z",
+        "",
+      ].join("\n"),
+    );
+});
 // `version` is the parity signal: the release workflow polls this after deploying and fails the
 // release unless it matches the version being published to npm, so "what runs on Fly" and "what
 // `npx @wcagc/mcp` installs" can never silently drift apart.

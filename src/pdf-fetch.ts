@@ -1,5 +1,6 @@
 import dns from "node:dns/promises";
 import net from "node:net";
+import { BlockList } from "node:net";
 import { config } from "./config.js";
 
 export class PdfFetchError extends Error {
@@ -12,23 +13,49 @@ export class PdfFetchError extends Error {
   }
 }
 
+// Same rule set as wcagc-worker/src/network-policy.ts, deliberately: two different answers to
+// "is this address reachable" is how one of them ends up wrong. The hand-rolled predicate this
+// replaced missed 100.64.0.0/10 (CGNAT), the reserved and documentation ranges, multicast, and —
+// because its IPv6 arm was default-ALLOW — every IPv4-mapped address such as ::ffff:127.0.0.1.
+const blockedV4 = new BlockList();
+for (const [network, prefix] of [
+  ["0.0.0.0", 8], ["10.0.0.0", 8], ["100.64.0.0", 10], ["127.0.0.0", 8],
+  ["169.254.0.0", 16], ["172.16.0.0", 12], ["192.0.0.0", 24], ["192.0.2.0", 24],
+  ["192.88.99.0", 24], ["192.168.0.0", 16], ["198.18.0.0", 15],
+  ["198.51.100.0", 24], ["203.0.113.0", 24], ["224.0.0.0", 4], ["240.0.0.0", 4],
+] as const) blockedV4.addSubnet(network, prefix, "ipv4");
+
+const blockedV6 = new BlockList();
+for (const [network, prefix] of [
+  ["::", 128], ["::1", 128], ["64:ff9b::", 96], ["64:ff9b:1::", 48],
+  ["100::", 64], ["2001::", 32], ["2001:2::", 48], ["2001:db8::", 32],
+  ["2001:10::", 28], ["2001:20::", 28], ["2002::", 16], ["fc00::", 7],
+  ["fec0::", 10], ["fe80::", 10], ["ff00::", 8],
+] as const) blockedV6.addSubnet(network, prefix, "ipv6");
+
+// Default-deny for IPv6: an address must be inside the globally routable 2000::/3 to pass, so a
+// shape nobody anticipated is refused rather than waved through.
+const publicV6 = new BlockList();
+publicV6.addSubnet("2000::", 3, "ipv6");
+
 function isPrivateIp(ip: string): boolean {
-  if (net.isIPv4(ip)) {
-    const parts = ip.split(".").map(Number);
-    const [a, b] = parts;
-    return a === 10 || a === 127 || a === 0 || (a === 169 && b === 254)
-      || (a === 172 && b >= 16 && b <= 31) || (a === 192 && b === 168);
-  }
-  if (net.isIPv6(ip)) {
-    const lower = ip.toLowerCase();
-    return lower === "::1" || lower.startsWith("fc") || lower.startsWith("fd") || lower.startsWith("fe80");
-  }
+  if (net.isIPv4(ip)) return blockedV4.check(ip, "ipv4");
+  if (net.isIPv6(ip)) return !(publicV6.check(ip, "ipv6") && !blockedV6.check(ip, "ipv6"));
   return true; // unrecognized shape — fail closed
 }
 
+// Hostnames that never resolve publicly but are the classic metadata targets.
+const FORBIDDEN_HOSTNAMES = new Set([
+  "instance-data", "metadata", "metadata.google.internal", "metadata.google.internal.",
+]);
+
 async function assertPublicHost(hostname: string): Promise<void> {
-  if (config.pdfFetchAllowedPrivateHosts.includes(hostname.toLowerCase())) {
+  const normalized = hostname.toLowerCase().replace(/^\[|\]$/g, "").replace(/\.$/, "");
+  if (config.pdfFetchAllowedPrivateHosts.includes(normalized)) {
     return;
+  }
+  if (FORBIDDEN_HOSTNAMES.has(normalized) || normalized.endsWith(".internal")) {
+    throw new PdfFetchError("INVALID_URL", "The PDF URL must resolve to a public address.");
   }
   let addresses: { address: string }[];
   try {
