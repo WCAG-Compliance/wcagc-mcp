@@ -148,6 +148,13 @@ test("request logs cover OAuth discovery and refusals without recording client d
     });
     assert.equal(malformed.status, 400);
     await malformed.text();
+    const probe = await fetch(harness.mcpUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Accept: "application/json, text/event-stream",
+        Authorization: `Bearer ${token}`, "MCP-Protocol-Version": "2099-01-01" },
+      body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "server/discover" }),
+    });
+    await probe.text();
   } finally {
     console.log = original;
   }
@@ -157,6 +164,8 @@ test("request logs cover OAuth discovery and refusals without recording client d
   assert.ok(records.some((record) => record.rpcMethod === "resources/list" && record.errorCode === -32601));
   assert.ok(records.some((record) => record.status === 401 && record.errorCode === "http_401"));
   assert.ok(records.some((record) => record.status === 400));
+  assert.ok(records.some((record) => record.rpcMethod === "other:server/discover"
+    && record.protocolVersion === "2099-01-01"));
   assert.ok(records.every((record) => record.durationMs >= 0 && typeof record.requestId === "string"));
   assert.ok(!captured.join("\n").includes(token));
   assert.ok(!captured.join("\n").includes(secret));

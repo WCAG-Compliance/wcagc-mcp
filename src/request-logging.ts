@@ -16,6 +16,16 @@ const paths = new Set([
   "/.well-known/oauth-authorization-server", "/.well-known/openai-apps-challenge",
 ]);
 
+// Unrecognized method names are kept only in a narrow shape, so a client can't inject
+// arbitrary text (or a secret it put in the method field) into the logs.
+const rpcMethodOf = (body: unknown): string => {
+  if (Array.isArray(body)) return "batch";
+  const method = (body as { method?: unknown } | undefined)?.method;
+  if (typeof method !== "string") return "unknown";
+  if (methods.has(method)) return method;
+  return /^[a-z/_]{1,64}$/.test(method) ? `other:${method}` : "unknown";
+};
+
 // Only fixed metadata is recorded: never URLs with queries, headers, IDs, params or results.
 export const requestLogging: RequestHandler = (req, res, next) => {
   if (!paths.has(req.path)) return next();
@@ -24,10 +34,12 @@ export const requestLogging: RequestHandler = (req, res, next) => {
   const path = req.path;
   const report = () => {
     const status = res.writableFinished ? res.statusCode : 499;
-    const rpcMethod = methods.has(req.body?.method) ? req.body.method : "unknown";
+    const rpcMethod = rpcMethodOf(req.body);
+    const version = req.get("mcp-protocol-version");
     const record = {
       message: "MCP HTTP request", level: status >= 500 ? "ERROR" : status >= 400 ? "WARN" : "INFO",
       requestId, path, httpMethod: req.method, rpcMethod, status,
+      protocolVersion: version && /^[0-9-]{1,16}$/.test(version) ? version : null,
       durationMs: Math.round(performance.now() - started),
       errorCode: res.locals.mcpErrorCode ?? (status >= 400 ? `http_${status}` : null),
     };
