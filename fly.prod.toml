@@ -6,6 +6,8 @@ dockerfile = "Dockerfile"
 
 [env]
 NODE_ENV = "production"
+NEW_RELIC_APP_NAME = "wcagc-mcp"
+NEW_RELIC_AGENT_ENABLED = "true"
 
 [http_service]
 internal_port = 8080

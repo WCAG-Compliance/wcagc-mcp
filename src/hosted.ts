@@ -7,10 +7,12 @@ import type { OAuthMetadata } from "@modelcontextprotocol/sdk/shared/auth.js";
 import { createMcpExpressApp } from "@modelcontextprotocol/sdk/server/express.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import express from "express";
+import type { ErrorRequestHandler } from "express";
 import { pathToFileURL } from "node:url";
 import { bearerVerifier } from "./auth-verifier.js";
 import { config } from "./config.js";
 import { logger } from "./logger.js";
+import { requestLogging } from "./request-logging.js";
 import { VERSION, buildServer } from "./server.js";
 
 // allowedHosts must stay undefined (not []) when unset — an explicit empty array opts into
@@ -29,6 +31,7 @@ mcpApp.use(express.json());
 // exempt while /mcp keeps full protection. Exempting it is safe: it returns a fixed status and
 // no request-specific or sensitive data, so reaching it via rebinding reveals nothing.
 export const app = express();
+app.use(requestLogging);
 
 // Response headers. This server answers JSON and nothing else — no HTML, no framing, no
 // subresources — so the strictest CSP is also the correct one, unlike the API host which has to
@@ -117,6 +120,11 @@ mcpApp.post("/mcp", auth, async (req, res) => {
   try {
     const server = buildServer();
     const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined });
+    const send = transport.send.bind(transport);
+    transport.send = (message, options) => {
+      if ("error" in message) res.locals.mcpErrorCode = message.error.code;
+      return send(message, options);
+    };
     res.on("close", () => {
       transport.close();
       server.close();
@@ -124,12 +132,20 @@ mcpApp.post("/mcp", auth, async (req, res) => {
     await server.connect(transport);
     await transport.handleRequest(req, res, req.body);
   } catch (err) {
-    logger.error("Unhandled error serving /mcp", err instanceof Error ? err.message : err);
+    logger.error("Unhandled error serving /mcp");
     if (!res.headersSent) {
       res.status(500).json({ error: "internal_error" });
     }
   }
 });
+
+// Express's default parser error log can echo malformed JSON containing credentials.
+const httpErrorHandler: ErrorRequestHandler = (err, _req, res, next) => {
+  if (res.headersSent) return next(err);
+  const status = Number.isInteger(err.status) && err.status >= 400 && err.status <= 599 ? err.status : 500;
+  res.status(status).json({ error: status < 500 ? "invalid_request" : "internal_error" });
+};
+app.use(httpErrorHandler);
 
 // Guarded so test/tools.test.ts can import `app` and mount it on an ephemeral port itself
 // without also triggering this module's own fixed-port listener.

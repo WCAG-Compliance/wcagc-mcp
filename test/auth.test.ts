@@ -115,3 +115,49 @@ test("a valid bearer never appears in process logs across a full tool call", asy
   const leaked = captured.some((line) => line.includes(TOKENS.FREE_OK));
   assert.equal(leaked, false, `bearer token leaked into logs: ${JSON.stringify(captured)}`);
 });
+
+test("request logs cover OAuth discovery and refusals without recording client data", async () => {
+  const captured: string[] = [];
+  const original = console.log;
+  console.log = (...args: unknown[]) => { captured.push(args.join(" ")); };
+  const token = harness.oauthToken();
+  const secret = "private-query-and-tool-argument";
+  try {
+    const client = await connectedClient(harness.mcpUrl, token);
+    try {
+      await client.listTools();
+      await assert.rejects(client.listResources());
+    } finally {
+      await client.close();
+    }
+    const toolClient = await connectedClient(harness.mcpUrl, TOKENS.FREE_OK);
+    try {
+      await toolClient.callTool({ name: "scan_url", arguments: { url: `https://example.com/?secret=${secret}` } });
+    } finally {
+      await toolClient.close();
+    }
+    const refused = await fetch(`${harness.mcpUrl}?secret=${secret}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Accept: "application/json, text/event-stream" },
+      body: JSON.stringify({ jsonrpc: "2.0", id: secret, method: secret, params: { secret } }),
+    });
+    assert.equal(refused.status, 401);
+    await refused.text();
+    const malformed = await fetch(harness.mcpUrl, {
+      method: "POST", headers: { "Content-Type": "application/json" }, body: `{${secret}`,
+    });
+    assert.equal(malformed.status, 400);
+    await malformed.text();
+  } finally {
+    console.log = original;
+  }
+  const records = captured.map((line) => JSON.parse(line));
+  assert.ok(records.some((record) => record.rpcMethod === "initialize" && record.status === 200));
+  assert.ok(records.some((record) => record.rpcMethod === "tools/list" && record.status === 200));
+  assert.ok(records.some((record) => record.rpcMethod === "resources/list" && record.errorCode === -32601));
+  assert.ok(records.some((record) => record.status === 401 && record.errorCode === "http_401"));
+  assert.ok(records.some((record) => record.status === 400));
+  assert.ok(records.every((record) => record.durationMs >= 0 && typeof record.requestId === "string"));
+  assert.ok(!captured.join("\n").includes(token));
+  assert.ok(!captured.join("\n").includes(secret));
+});

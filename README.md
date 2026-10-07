@@ -94,6 +94,15 @@ roughly 30–57% of accessibility issues, and the remainder needs manual review.
 
 ## Development
 
+Hosted HTTP requests to `/mcp` and discovery endpoints produce JSON logs with a generated
+request ID, HTTP status, MCP method, error code and duration. Tokens, headers, query strings,
+tool arguments and results are excluded. Health probes are not logged.
+
+The Docker entrypoint preloads the New Relic ESM agent. Set `NEW_RELIC_AGENT_ENABLED=true`,
+`NEW_RELIC_APP_NAME=wcagc-mcp` and the deployment secret `NEW_RELIC_LICENSE_KEY` to enable
+APM and forwarding of these safe request logs. The license key must belong to the existing
+New Relic account; never commit it. The stdio entrypoint does not load the agent.
+
 ```bash
 npm install
 npm run dev        # hosted, watch mode

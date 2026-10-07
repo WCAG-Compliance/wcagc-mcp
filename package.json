@@ -1,8 +1,8 @@
 {
   "name": "@wcagc/mcp",
-  "version": "0.7.3",
+  "version": "0.7.4",
   "mcpName": "io.github.WCAG-Compliance/mcp",
-  "description": "wcagc MCP server \u2014 a thin, stateless adapter that translates MCP tool calls into wcagc-api HTTP calls. No database, no secrets beyond WCAGC_API_BASE_URL (+ WCAGC_MCP_KEY for local stdio mode). Open-source: this package holds no business logic or credentials of its own.",
+  "description": "wcagc MCP server — a thin, stateless adapter that translates MCP tool calls into wcagc-api HTTP calls. No database, no secrets beyond WCAGC_API_BASE_URL (+ WCAGC_MCP_KEY for local stdio mode). Open-source: this package holds no business logic or credentials of its own.",
   "license": "MIT",
   "private": false,
   "type": "module",
@@ -55,6 +55,7 @@
   "dependencies": {
     "@modelcontextprotocol/sdk": "1.29.0",
     "express": "^5.2.1",
+    "newrelic": "^14.6.0",
     "zod": "^3.25.0"
   },
   "devDependencies": {
