@@ -32,7 +32,6 @@ export const requestLogging: RequestHandler = (req, res, next) => {
       errorCode: res.locals.mcpErrorCode ?? (status >= 400 ? `http_${status}` : null),
     };
     logger.info(JSON.stringify(record));
-    newrelic?.addCustomAttributes({ "mcp.method": rpcMethod, "mcp.requestId": requestId });
     newrelic?.recordLogEvent({ ...record });
   };
   res.once("finish", report);
