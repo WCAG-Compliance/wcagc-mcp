@@ -168,7 +168,7 @@ test("get_root_causes returns factual blast radius and the coverage disclaimer",
   try {
     const result = await client.callTool({
       name: "get_root_causes",
-      arguments: { runId: "33333333-3333-3333-3333-333333333333" },
+      arguments: { runId: "33333333-3333-4333-8333-333333333333" },
     });
     assert.notEqual(result.isError, true);
     const structured = result.structuredContent as {
@@ -196,7 +196,7 @@ test("get_root_causes preserves the API_ACCESS paywall", async () => {
   try {
     const result = await client.callTool({
       name: "get_root_causes",
-      arguments: { runId: "33333333-3333-3333-3333-333333333333" },
+      arguments: { runId: "33333333-3333-4333-8333-333333333333" },
     });
     assert.equal(result.isError, true);
     const structured = result.structuredContent as { code: string; targetPlan: string };

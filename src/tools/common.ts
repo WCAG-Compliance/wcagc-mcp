@@ -84,6 +84,6 @@ export function summarizeScanLike(scan: ScanLike, label: string, pollHint: strin
   } else {
     parts.push(pollHint);
   }
-  parts.push(COVERAGE_DISCLAIMER);
+  parts.push(`Standard: ${STANDARD_WCAG21_AA}.`, COVERAGE_DISCLAIMER);
   return parts.join(" ");
 }

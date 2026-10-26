@@ -1,6 +1,4 @@
-import { InvalidTokenError } from "@modelcontextprotocol/sdk/server/auth/errors.js";
-import type { OAuthTokenVerifier } from "@modelcontextprotocol/sdk/server/auth/provider.js";
-import type { AuthInfo } from "@modelcontextprotocol/sdk/server/auth/types.js";
+import { OAuthError, OAuthErrorCode, type AuthInfo, type OAuthTokenVerifier } from "@modelcontextprotocol/server";
 import { createPublicKey, verify as verifySignature, type JsonWebKey } from "node:crypto";
 import { apiJson, McpApiError } from "./api-client.js";
 import { config } from "./config.js";
@@ -70,9 +68,9 @@ export const introspectVerifier: OAuthTokenVerifier = {
       response = await apiJson<McpIntrospectResponse>(token, "/api/v1/mcp/introspect", { method: "POST" });
     } catch (err) {
       // Deliberately generic — never echo the raw upstream detail, which could hint at key
-      // enumeration; requireBearerAuth maps InvalidTokenError to a 401 challenge either way.
+      // enumeration; requireBearerAuth maps InvalidToken to a 401 challenge either way.
       const detail = err instanceof McpApiError ? err.code : "verification failed";
-      throw new InvalidTokenError(`Could not verify the MCP key (${detail}).`);
+      throw new OAuthError(OAuthErrorCode.InvalidToken, `Could not verify the MCP key (${detail}).`);
     }
 
     const authInfo: AuthInfo = {
@@ -94,9 +92,13 @@ export const introspectVerifier: OAuthTokenVerifier = {
 
 function decodePart<T>(value: string): T {
   try {
-    return JSON.parse(Buffer.from(value, "base64url").toString("utf8")) as T;
+    const decoded: unknown = JSON.parse(Buffer.from(value, "base64url").toString("utf8"));
+    if (decoded === null || typeof decoded !== "object" || Array.isArray(decoded)) {
+      throw new Error("JWT header and claims must be objects.");
+    }
+    return decoded as T;
   } catch {
-    throw new InvalidTokenError("Invalid OAuth access token.");
+    throw new OAuthError(OAuthErrorCode.InvalidToken, "Invalid OAuth access token.");
   }
 }
 
@@ -113,15 +115,15 @@ async function fetchJwks(force = false): Promise<JsonWebKey[]> {
       signal: AbortSignal.timeout(config.requestTimeoutMs),
     });
   } catch {
-    throw new InvalidTokenError("Could not verify the OAuth access token.");
+    throw new OAuthError(OAuthErrorCode.InvalidToken, "Could not verify the OAuth access token.");
   }
   if (!response.ok) {
-    throw new InvalidTokenError("Could not verify the OAuth access token.");
+    throw new OAuthError(OAuthErrorCode.InvalidToken, "Could not verify the OAuth access token.");
   }
 
   const body = await response.json() as Partial<JwksResponse>;
   if (!Array.isArray(body.keys)) {
-    throw new InvalidTokenError("Could not verify the OAuth access token.");
+    throw new OAuthError(OAuthErrorCode.InvalidToken, "Could not verify the OAuth access token.");
   }
   jwksCache = { keys: body.keys, fetchedAt: now };
   return body.keys;
@@ -134,12 +136,12 @@ function jwtScopes(claim: JwtClaims["scope"]): string[] {
 
 async function verifyJwt(token: string): Promise<AuthInfo> {
   const parts = token.split(".");
-  if (parts.length !== 3) throw new InvalidTokenError("Invalid OAuth access token.");
+  if (parts.length !== 3) throw new OAuthError(OAuthErrorCode.InvalidToken, "Invalid OAuth access token.");
 
   const [encodedHeader, encodedClaims, encodedSignature] = parts;
   const header = decodePart<JwtHeader>(encodedHeader);
   const claims = decodePart<JwtClaims>(encodedClaims);
-  if (header.alg !== "RS256" || !header.kid) throw new InvalidTokenError("Invalid OAuth access token.");
+  if (header.alg !== "RS256" || !header.kid) throw new OAuthError(OAuthErrorCode.InvalidToken, "Invalid OAuth access token.");
 
   let keys = await fetchJwks();
   let key = keys.find((candidate) => candidate.kid === header.kid);
@@ -147,7 +149,7 @@ async function verifyJwt(token: string): Promise<AuthInfo> {
     keys = await fetchJwks(true);
     key = keys.find((candidate) => candidate.kid === header.kid);
   }
-  if (!key) throw new InvalidTokenError("Invalid OAuth access token.");
+  if (!key) throw new OAuthError(OAuthErrorCode.InvalidToken, "Invalid OAuth access token.");
 
   let signatureValid = false;
   try {
@@ -158,9 +160,9 @@ async function verifyJwt(token: string): Promise<AuthInfo> {
       Buffer.from(encodedSignature, "base64url"),
     );
   } catch {
-    throw new InvalidTokenError("Invalid OAuth access token.");
+    throw new OAuthError(OAuthErrorCode.InvalidToken, "Invalid OAuth access token.");
   }
-  if (!signatureValid) throw new InvalidTokenError("Invalid OAuth access token.");
+  if (!signatureValid) throw new OAuthError(OAuthErrorCode.InvalidToken, "Invalid OAuth access token.");
 
   const now = Math.floor(Date.now() / 1000);
   const audiences = Array.isArray(claims.aud) ? claims.aud : claims.aud ? [claims.aud] : [];
@@ -177,7 +179,7 @@ async function verifyJwt(token: string): Promise<AuthInfo> {
     || !claims.client_id
     || !scopes.includes("mcp:scan")
   ) {
-    throw new InvalidTokenError("Invalid OAuth access token.");
+    throw new OAuthError(OAuthErrorCode.InvalidToken, "Invalid OAuth access token.");
   }
 
   return {

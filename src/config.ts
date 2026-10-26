@@ -13,6 +13,47 @@ const apiBaseUrl = process.env.WCAGC_API_BASE_URL ?? "https://api.wcagc.com";
 const oauthIssuer = process.env.WCAGC_MCP_OAUTH_ISSUER ?? apiBaseUrl;
 const mcpServerUrl = process.env.WCAGC_MCP_URL ?? "https://mcp.wcagc.com/mcp";
 
+export function resolveAllowedHosts(envUrl = mcpServerUrl, nodeEnv = process.env.NODE_ENV): string[] {
+  const fromEnv = parseList(process.env.WCAGC_MCP_ALLOWED_HOSTS, []);
+  if (fromEnv.length > 0) return fromEnv;
+  if (nodeEnv === "production") {
+    try {
+      const parsed = new URL(envUrl);
+      if (parsed.hostname) {
+        return [parsed.hostname];
+      }
+    } catch {
+      // invalid URL
+    }
+    throw new Error(
+      "Fatal: In production mode, WCAGC_MCP_ALLOWED_HOSTS must be set or WCAGC_MCP_URL must provide a valid hostname to prevent DNS rebinding."
+    );
+  }
+  return ["localhost", "127.0.0.1", "[::1]"];
+}
+
+export function resolveAllowedOrigins(envUrl = mcpServerUrl, nodeEnv = process.env.NODE_ENV): string[] {
+  const fromEnv = parseList(process.env.WCAGC_MCP_ALLOWED_ORIGINS, []);
+  if (fromEnv.length > 0) return fromEnv;
+  if (nodeEnv === "production") {
+    let hostname: string | undefined;
+    try {
+      hostname = new URL(envUrl).hostname;
+    } catch {
+      // invalid URL
+    }
+    return [
+      ...(hostname ? [hostname] : []),
+      "wcagc.com",
+      "app.wcagc.com",
+      "claude.ai",
+      "chatgpt.com",
+      "chat.openai.com",
+    ];
+  }
+  return ["localhost", "127.0.0.1", "[::1]"];
+}
+
 /**
  * wcagc-mcp holds no secrets of its own beyond these — it is a thin adapter that translates MCP
  * tool calls into wcagc-api HTTP calls, forwarding the caller's own bearer (ARCHITECTURE §8).
@@ -22,8 +63,9 @@ export const config = {
   port: num(process.env.PORT, 8080),
   host: process.env.WCAGC_MCP_HOST ?? "0.0.0.0",
   // Host-header allowlist for the SDK's DNS-rebinding protection when bound to 0.0.0.0
-  // (createMcpExpressApp only auto-enables it for a localhost bind). Empty in local dev.
-  allowedHosts: parseList(process.env.WCAGC_MCP_ALLOWED_HOSTS, []),
+  // Derived safely from mcpServerUrl in production, with fail-fast validation.
+  allowedHosts: resolveAllowedHosts(),
+  allowedOrigins: resolveAllowedOrigins(),
 
   // ── local (stdio) ──────────────────────────────────────────────────────────
   // The one MCP-scoped API key this local process authenticates every backend call with.

@@ -79,6 +79,24 @@ test("wrong scope / unknown token — 401, not a silent pass-through", async () 
   assert.equal(res.status, 401);
 });
 
+test("non-object JWT headers are invalid tokens, never server errors", async () => {
+  for (const header of [null, false, 42, "header", []]) {
+    const encoded = Buffer.from(JSON.stringify(header)).toString("base64url");
+    const token = `${encoded}.e30.invalid`;
+    const response = await fetch(harness.mcpUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "initialize", params: {} }),
+    });
+    assert.equal(response.status, 401);
+    assert.match(response.headers.get("www-authenticate") ?? "", /invalid_token/);
+    assert.ok(!(await response.text()).includes(token));
+  }
+});
+
 test("a valid bearer never appears in process logs across a full tool call", async () => {
   const captured: string[] = [];
   const originals = {
@@ -126,7 +144,7 @@ test("request logs cover OAuth discovery and refusals without recording client d
     const client = await connectedClient(harness.mcpUrl, token);
     try {
       await client.listTools();
-      await assert.rejects(client.listResources());
+      await assert.rejects(client.request({ method: "resources/list" }));
     } finally {
       await client.close();
     }
@@ -169,4 +187,47 @@ test("request logs cover OAuth discovery and refusals without recording client d
   assert.ok(records.every((record) => record.durationMs >= 0 && typeof record.requestId === "string"));
   assert.ok(!captured.join("\n").includes(token));
   assert.ok(!captured.join("\n").includes(secret));
+});
+
+test("legacy client protocol compatibility — negotiates protocol with legacy 2024-11-05 client", async () => {
+  const token = harness.oauthToken();
+  const res = await fetch(harness.mcpUrl, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Accept: "application/json, text/event-stream",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({
+      jsonrpc: "2.0",
+      id: 1,
+      method: "initialize",
+      params: {
+        protocolVersion: "2024-11-05",
+        capabilities: {},
+        clientInfo: { name: "legacy-test-client", version: "1.0.0" },
+      },
+    }),
+  });
+  assert.equal(res.status, 200);
+  const text = await res.text();
+  const dataLine = text.split("\n").find((line) => line.startsWith("data: "));
+  assert.ok(dataLine, "expected SSE data line");
+  const data = JSON.parse(dataLine.replace(/^data:\s*/, "")) as {
+    result: { protocolVersion: string; capabilities: Record<string, unknown>; serverInfo: { name: string; version: string } };
+  };
+  assert.equal(data.result.protocolVersion, "2024-11-05");
+  assert.ok(data.result.capabilities.tools);
+  assert.equal(data.result.serverInfo.name, "wcagc");
+});
+
+test("health endpoint is reachable regardless of Host header", async () => {
+  const healthUrl = harness.mcpUrl.replace(/\/mcp$/, "/health");
+  const res = await fetch(healthUrl, {
+    headers: { Host: "10.0.0.1:8080" },
+  });
+  assert.equal(res.status, 200);
+  const body = await res.json() as { status: string; version: string };
+  assert.equal(body.status, "ok");
+  assert.ok(body.version);
 });

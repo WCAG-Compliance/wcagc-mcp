@@ -32,9 +32,9 @@ test("scan_url — happy path carries the coverage disclaimer in both text and s
 test("get_scan and get_findings — read an existing scan", async () => {
   const client = await connectedClient(harness.mcpUrl, TOKENS.FREE_OK);
   try {
-    const scan = await client.callTool({ name: "get_scan", arguments: { scanId: "11111111-1111-1111-1111-111111111111" } });
+    const scan = await client.callTool({ name: "get_scan", arguments: { scanId: "11111111-1111-4111-8111-111111111111" } });
     assert.notEqual(scan.isError, true);
-    const findings = await client.callTool({ name: "get_findings", arguments: { scanId: "11111111-1111-1111-1111-111111111111" } });
+    const findings = await client.callTool({ name: "get_findings", arguments: { scanId: "11111111-1111-4111-8111-111111111111" } });
     assert.notEqual(findings.isError, true);
     const structured = findings.structuredContent as { violations: unknown[] };
     assert.ok(Array.isArray(structured.violations));
@@ -53,7 +53,7 @@ test("a result carrying counts also carries the instruction not to score them", 
   try {
     const result: any = await client.callTool({
       name: "get_scan",
-      arguments: { scanId: "11111111-1111-1111-1111-111111111111" },
+      arguments: { scanId: "11111111-1111-4111-8111-111111111111" },
     });
     assert.notEqual(result.isError, true);
     for (const channel of [result.content[0].text, result.structuredContent.scoringGuidance]) {
@@ -61,6 +61,42 @@ test("a result carrying counts also carries the instruction not to score them", 
       assert.match(channel, /do not describe the page as compliant or accessible/i);
     }
     assert.ok(result.structuredContent.coverageDisclaimer);
+  } finally {
+    await client.close();
+  }
+});
+
+test("UUID format validation — validates strict RFC 4122 compliance for tool input", async () => {
+  const client = await connectedClient(harness.mcpUrl, TOKENS.FREE_OK);
+  try {
+    // 1. Valid RFC 4122 v4 UUID is accepted
+    const validV4 = await client.callTool({
+      name: "get_scan",
+      arguments: { scanId: "11111111-1111-4111-8111-111111111111" },
+    });
+    assert.notEqual(validV4.isError, true);
+
+    // 2. Valid RFC 4122 v7 UUID is accepted by z.string().uuid()
+    const validV7 = await client.callTool({
+      name: "get_scan",
+      arguments: { scanId: "018f4a20-8000-7111-8111-111111111111" },
+    });
+    // Valid UUID syntax passes schema validation (even if backend returns not found / empty result)
+    assert.notEqual(validV7.isError, true);
+
+    // 3. Non-UUID string fails schema validation
+    const invalidFormat = await client.callTool({
+      name: "get_scan",
+      arguments: { scanId: "not-a-valid-uuid" },
+    });
+    assert.equal(invalidFormat.isError, true);
+
+    // 4. Invalid variant/version UUID fails strict RFC 4122 uuid() validation
+    const invalidVariant = await client.callTool({
+      name: "get_scan",
+      arguments: { scanId: "11111111-1111-0111-0111-111111111111" },
+    });
+    assert.equal(invalidVariant.isError, true);
   } finally {
     await client.close();
   }

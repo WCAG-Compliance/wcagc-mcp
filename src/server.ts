@@ -1,4 +1,4 @@
-import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { McpServer } from "@modelcontextprotocol/server";
 import { registerPdfTools } from "./tools/pdf.js";
 import { registerProTools } from "./tools/pro.js";
 import { registerScanTools } from "./tools/scan.js";
@@ -7,7 +7,7 @@ import { registerScanTools } from "./tools/scan.js";
 // initialize handshake and by GET /health. Must equal package.json's version: the release
 // workflow compares the deployed /health against the version it publishes to npm, and
 // test/version.test.ts fails the build if the two ever drift.
-export const VERSION = "0.7.5";
+export const VERSION = "0.8.0";
 
 /**
  * One server, two transports (hosted Streamable HTTP + local stdio) share this — the tool

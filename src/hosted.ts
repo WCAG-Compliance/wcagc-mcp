@@ -1,11 +1,11 @@
-import { requireBearerAuth } from "@modelcontextprotocol/sdk/server/auth/middleware/bearerAuth.js";
 import {
+  createMcpExpressApp,
   getOAuthProtectedResourceMetadataUrl,
   mcpAuthMetadataRouter,
-} from "@modelcontextprotocol/sdk/server/auth/router.js";
-import type { OAuthMetadata } from "@modelcontextprotocol/sdk/shared/auth.js";
-import { createMcpExpressApp } from "@modelcontextprotocol/sdk/server/express.js";
-import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
+  requireBearerAuth,
+} from "@modelcontextprotocol/express";
+import { toNodeHandler } from "@modelcontextprotocol/node";
+import { createMcpHandler, type OAuthMetadata } from "@modelcontextprotocol/server";
 import express from "express";
 import type { ErrorRequestHandler } from "express";
 import { pathToFileURL } from "node:url";
@@ -19,7 +19,8 @@ import { VERSION, buildServer } from "./server.js";
 // Host-header validation with a zero-entry allowlist, rejecting every request.
 const mcpApp = createMcpExpressApp({
   host: config.host,
-  allowedHosts: config.allowedHosts.length > 0 ? config.allowedHosts : undefined,
+  allowedHosts: config.allowedHosts && config.allowedHosts.length > 0 ? config.allowedHosts : undefined,
+  allowedOrigins: config.allowedOrigins && config.allowedOrigins.length > 0 ? config.allowedOrigins : undefined,
 });
 mcpApp.use(express.json());
 
@@ -112,25 +113,44 @@ const auth = requireBearerAuth({
   resourceMetadataUrl: getOAuthProtectedResourceMetadataUrl(new URL(config.mcpServerUrl)),
 });
 
-// Stateless mode (SDK guidance: "suitable for simple API proxies... any server node can process
-// requests" — exactly this service): a fresh McpServer + transport per request. Tool handlers
-// hold no state beyond the request itself, so this costs nothing and needs no sticky sessions or
-// session store across Fly machines.
-mcpApp.post("/mcp", auth, async (req, res) => {
+// MCP 2026-07-28 Modern Handler with legacy compatibility mode ('stateless').
+// Officially recommended createMcpHandler pattern for SDK v2: stateless per-request
+// server lifecycle with seamless support for both modern 2026-07-28 era and legacy 2024/2025 era clients.
+const mcpHandler = createMcpHandler(
+  () => buildServer(),
+  {
+    legacy: "stateless",
+    onerror: (err) => logger.error("MCP handler error", { err }),
+  }
+);
+const nodeHandler = toNodeHandler(mcpHandler, {
+  onerror: (err) => logger.error("MCP node handler error", { err }),
+});
+
+mcpApp.all("/mcp", auth, async (req, res) => {
   try {
-    const server = buildServer();
-    const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined });
-    const send = transport.send.bind(transport);
-    transport.send = (message, options) => {
-      if ("error" in message) res.locals.mcpErrorCode = message.error.code;
-      return send(message, options);
+    const origWrite = res.write.bind(res);
+    res.write = function (chunk: any, ...args: any[]) {
+      try {
+        const text = typeof chunk === "string" ? chunk : new TextDecoder().decode(chunk);
+        try {
+          const parsed = JSON.parse(text);
+          if (parsed?.error?.code !== undefined) {
+            res.locals.mcpErrorCode = parsed.error.code;
+          }
+        } catch {
+          const match = text.match(/data:\s*({.*})/);
+          if (match) {
+            const parsed = JSON.parse(match[1]);
+            if (parsed?.error?.code !== undefined) {
+              res.locals.mcpErrorCode = parsed.error.code;
+            }
+          }
+        }
+      } catch {}
+      return origWrite(chunk, ...args);
     };
-    res.on("close", () => {
-      transport.close();
-      server.close();
-    });
-    await server.connect(transport);
-    await transport.handleRequest(req, res, req.body);
+    await nodeHandler(req, res, req.body);
   } catch (err) {
     logger.error("Unhandled error serving /mcp");
     if (!res.headersSent) {

@@ -72,8 +72,7 @@ export async function startHarness(): Promise<Harness> {
 }
 
 export async function connectedClient(mcpUrl: string, token: string) {
-  const { Client } = await import("@modelcontextprotocol/sdk/client/index.js");
-  const { StreamableHTTPClientTransport } = await import("@modelcontextprotocol/sdk/client/streamableHttp.js");
+  const { Client, StreamableHTTPClientTransport } = await import("@modelcontextprotocol/client");
   const client = new Client({ name: "wcagc-mcp-test-client", version: "0.0.1" });
   const transport = new StreamableHTTPClientTransport(new URL(mcpUrl), {
     requestInit: { headers: { Authorization: `Bearer ${token}` } },
