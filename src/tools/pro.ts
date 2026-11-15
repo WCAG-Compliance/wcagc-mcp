@@ -378,23 +378,27 @@ export function registerProTools(server: McpServer): void {
       title: "Start a full-site scan",
       description: "Crawls and scans every reachable page of a registered site. Pro+ " +
         "(SCAN_FULL_SITE). Queues the run and returns immediately with a runId — call get_run to poll. " +
-        "Call list_sites first if you do not already know the exact registered host.",
+        "Call list_sites first if you do not already know the exact registered host. When the organization " +
+        "uses credits, a run costs 1 credit per 5 successful pages; set maxPages to cap what it may cost.",
       inputSchema: {
         siteHost: z.string().describe(
           "The registered site's normalized host, exactly as list_sites reports it — host only, no scheme and no path.",
+        ),
+        maxPages: z.number().int().min(1).max(10000).optional().describe(
+          "Optional. The most pages to scan — also the most the run can cost (1 credit per 5 pages).",
         ),
       },
       outputSchema: { run: runSchema, ...disclaimerShape },
       _meta: OAUTH_TOOL_META,
       annotations: { title: "Start a full-site scan", ...QUEUES_PRIVATE_WORK },
     },
-    async ({ siteHost }, extra) => {
+    async ({ siteHost, maxPages }, extra) => {
       try {
         const bearer = resolveBearer(extra);
         const site = await resolveSite(bearer, siteHost);
         const accepted = await apiJson<V1RunAcceptedResponse>(bearer, "/api/v1/scan-runs", {
           method: "POST",
-          body: JSON.stringify({ siteId: site.id }),
+          body: JSON.stringify(maxPages ? { siteId: site.id, maxPages } : { siteId: site.id }),
         });
         const run = { ...accepted, siteId: site.id };
         const response = withDisclaimer({ run });

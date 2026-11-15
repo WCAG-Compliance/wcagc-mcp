@@ -98,4 +98,6 @@ export const config = {
 
   // Base URL used to build a paywall hint's upgradeUrl from a ProblemDetail's targetPlan.
   pricingUrl: process.env.WCAGC_MCP_PRICING_URL ?? "https://wcagc.com/pricing",
+  /** Pricing V2: where a user sees the balance and buys credits (signed-in app page). */
+  creditsUrl: process.env.WCAGC_MCP_CREDITS_URL ?? "https://wcagc.com/billing/credits",
 };

@@ -14,6 +14,8 @@ export class McpApiError extends Error {
     public readonly limit?: number,
     /** Set on API_KEY_SCOPE_MISSING — the scope the key would have needed. */
     public readonly requiredScope?: string,
+    /** Pricing V2: set on INSUFFICIENT_CREDITS / CREDITS_BLOCKED. */
+    public readonly credits?: { required?: number; available?: number; outstanding?: number; operation?: string },
   ) {
     super(message);
     this.name = "McpApiError";
@@ -37,7 +39,17 @@ async function toApiError(res: Response): Promise<McpApiError> {
   const targetPlan = typeof body.targetPlan === "string" ? body.targetPlan : undefined;
   const limit = typeof body.limit === "number" ? body.limit : undefined;
   const requiredScope = typeof body.requiredScope === "string" ? body.requiredScope : undefined;
-  return new McpApiError(res.status, code, message, targetPlan, limit, requiredScope);
+  const num = (v: unknown) => (typeof v === "number" ? v : undefined);
+  const credits =
+    code === "INSUFFICIENT_CREDITS" || code === "CREDITS_BLOCKED"
+      ? {
+          required: num(body.required),
+          available: num(body.available),
+          outstanding: num(body.outstanding),
+          operation: typeof body.operation === "string" ? body.operation : undefined,
+        }
+      : undefined;
+  return new McpApiError(res.status, code, message, targetPlan, limit, requiredScope, credits);
 }
 
 /** Never logs `bearer` — callers must not either. */

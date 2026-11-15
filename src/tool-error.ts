@@ -1,3 +1,4 @@
+import { config } from "./config.js";
 import { McpApiError } from "./api-client.js";
 
 interface ToolErrorResult {
@@ -39,6 +40,14 @@ export function toolError(err: unknown): ToolErrorResult {
         ` This needs an API key carrying the "${err.requiredScope}" scope. An mcp:scan-only key` +
         ` cannot reach it: mint a key with that scope under Settings > API keys (the v1 scopes` +
         ` require a Pro plan or higher).${hint}`;
+    }
+    // Pricing V2: the same "you need N, you have M" answer the web app and CLI give. No credits
+    // are ever overdrawn; the user tops up or waits for the monthly credits.
+    if (err.credits) {
+      for (const [k, v] of Object.entries(err.credits)) if (v !== undefined) structured[k] = v;
+      hint +=
+        ` Required: ${err.credits.required ?? "?"} credits, available: ${err.credits.available ?? 0}.` +
+        ` Nothing was charged. Add credits or change the plan at ${config.creditsUrl}, then retry.`;
     }
     return {
       content: [{ type: "text", text: `${err.code}: ${err.message}${hint}` }],
